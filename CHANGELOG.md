@@ -1,4 +1,4 @@
-# Tensor Reclaim changelog
+# Latchloom changelog
 
 This file records changes in the fork. The CLI is version 0.1.0; the inherited
 kernel/package version is 2.0.0. Use the Git commit to identify an engine build.
@@ -29,8 +29,8 @@ No packaged fork release has been published.
 
 ### Project
 
-- Rename the project to Tensor Reclaim and add new banner artwork. Preserve
-  existing CLI, kernel module, and package interfaces.
+- Give the project the Latchloom name and a paper-and-cobalt graphic identity.
+  Preserve existing CLI, kernel module, and package interfaces.
 - Protect `main` with mandatory pull requests, both current CPU CI checks,
   resolved conversations, linear history, and administrator enforcement.
 

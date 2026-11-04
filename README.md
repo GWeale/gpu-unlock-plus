@@ -1,19 +1,19 @@
-![Tensor Reclaim: conceptual GPU silicon illustration for RTX 20 and 30 Linux kernel engineering](assets/tensor-reclaim-banner.png)
+![Latchloom: a cobalt and vermilion woven mark on warm paper, with the subtitle Linux GPU unlock and recovery](assets/latchloom-banner.png)
 
-# Tensor Reclaim
+# Latchloom
 
-[![Checks](https://github.com/GWeale/tensor-reclaim/actions/workflows/checks.yml/badge.svg?branch=main)](https://github.com/GWeale/tensor-reclaim/actions/workflows/checks.yml)
+[![Checks](https://github.com/GWeale/latchloom/actions/workflows/checks.yml/badge.svg?branch=main)](https://github.com/GWeale/latchloom/actions/workflows/checks.yml)
 [![License: GPL-2.0-only](https://img.shields.io/badge/license-GPL--2.0--only-blue)](LICENSE)
 
 [Quick start](#quick-start) · [Engine changes](#engine-changes-and-evidence) ·
 [Validation](docs/VALIDATION.md) · [Changelog](CHANGELOG.md) ·
 [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
 
-An RTX 20/30 engine fork of [Zagitta/gpu-unlock](https://github.com/Zagitta/gpu-unlock)
-with corrected Turing bring-up and an Ampere path that writes the speed selectors
-from signed firmware while preserving the entry protection masks. It also restores
-reported laptop recipes. Read-only preflight, recovery planning, and benchmark
-capture support those engine changes.
+Latchloom is an experimental Linux GPU unlock and recovery engine for RTX 20/30
+cards, built on [Zagitta/gpu-unlock](https://github.com/Zagitta/gpu-unlock). It adds
+per-card transaction state, complete transfer preflight, and guarded recovery
+alongside the Turing and Ampere engine changes. Read-only diagnostics and
+controlled benchmarks help you inspect the evidence.
 
 The goal is reliable access to the hardware's unlocked tensor rate. This fork
 claims no rate beyond that unlock and no measured speed advantage over upstream.
@@ -34,8 +34,8 @@ Inspect a Linux host with Python 3.10 or later. These commands use the standard
 library and do not install anything, change boot settings, or access GPU registers.
 
 ```sh
-git clone https://github.com/GWeale/tensor-reclaim.git
-cd tensor-reclaim
+git clone https://github.com/GWeale/latchloom.git
+cd latchloom
 ./gpu-unlock-plus doctor
 ./gpu-unlock-plus status
 ```
@@ -45,6 +45,14 @@ read [setup and recovery](#review-setup-and-recovery) and the
 [validation limits](docs/VALIDATION.md). For development, run `make check`.
 
 ## Engine changes and evidence
+
+The recovery engine treats each card as a separate session. An uncertain
+transaction or failed ownership restoration quarantines that card against
+later attempts for the module lifetime. Fresh assessment can recognize a
+kept-power unlock before firmware preparation, and complete transfer validation
+runs before reset or ownership changes. These paths are tested in production-C
+fixtures; physical recovery behavior remains unvalidated. See the
+[session recovery contract](docs/ENGINE-RECOVERY.md).
 
 - **Turing TU102/TU104/TU106:** tolerate the known stale HALTED state only on
   the Turing loader paths, allow physical DMA without a context, and clear
@@ -214,7 +222,7 @@ provisioned build environment. They can download dependencies and run installers
 inside containers; `make check` does neither.
 
 [Validation and known limits](docs/VALIDATION.md) records the observed checks.
-The [Checks workflow](https://github.com/GWeale/tensor-reclaim/actions/workflows/checks.yml)
+The [Checks workflow](https://github.com/GWeale/latchloom/actions/workflows/checks.yml)
 runs CPU-only tests on pushes to `main` and pull requests, with Python 3.10 and
 3.13 and a C sanitizer pass. It does not install the module or test a physical GPU.
 The inherited distribution matrix remains manual-only. The Unraid publisher is
@@ -225,7 +233,7 @@ published automatically.
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) for local checks, source attribution,
 hardware evidence requirements, and issue reporting. Track fork problems in
-[Issues](https://github.com/GWeale/tensor-reclaim/issues), review changes in
+[Issues](https://github.com/GWeale/latchloom/issues), review changes in
 [the changelog](CHANGELOG.md), and report vulnerabilities through
 [the security policy](SECURITY.md). Public reports should contain only the
 relevant, redacted evidence.
