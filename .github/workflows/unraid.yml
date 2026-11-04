@@ -2,10 +2,6 @@
 name: Unraid
 
 on:
-  push:
-    branches: [main]
-  schedule:
-    - cron: '17 5 * * *'
   workflow_dispatch:
 
 permissions:
@@ -20,7 +16,7 @@ concurrency:
 # release, which the plugin downloads from.
 jobs:
   discover:
-    if: github.ref == 'refs/heads/main'
+    if: github.repository == 'Zagitta/gpu-unlock' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     outputs:
       releases: ${{ steps.find.outputs.releases }}

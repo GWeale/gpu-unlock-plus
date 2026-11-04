@@ -1,6 +1,13 @@
 /workbook/
 /scratchpad/
 /build/
+/.local/
+/results/
+/.venv/
+/.env
+/.env.*
+*.journal.jsonl
+*.benchmark.json
 /.inputs/
 **/__pycache__/
 *.pyc

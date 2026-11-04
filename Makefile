@@ -35,6 +35,20 @@ DEBS    := $(foreach p,dkms firmware,$(DEBDIR)/gpu-unlock-$(p)_$(VERSION)_all.de
 
 all:
 
+.PHONY: test check doctor status
+test:
+	$(PYTHON) -m unittest discover -s tests/plus -v
+
+check: test
+	$(PYTHON) -m compileall -q gpu_unlock_plus
+	git diff --check
+
+doctor:
+	$(PYTHON) -m gpu_unlock_plus doctor
+
+status:
+	$(PYTHON) -m gpu_unlock_plus status
+
 # Source-only release tarball; see .gitattributes for what is left out.
 dist:
 	mkdir -p $(DISTDIR)

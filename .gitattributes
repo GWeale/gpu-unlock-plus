@@ -3,6 +3,11 @@
 /VERSION -export-ignore
 /Makefile -export-ignore
 /README.md -export-ignore
+/UPSTREAM.md -export-ignore
+/gpu-unlock-plus -export-ignore
+/gpu_unlock_plus -export-ignore
+/docs -export-ignore
+/tests -export-ignore
 /firmware -export-ignore
 /kernel -export-ignore
 /licenses -export-ignore

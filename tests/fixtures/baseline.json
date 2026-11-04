@@ -1,0 +1,31 @@
+{
+  "schema": "gpu-unlock-plus.benchmark/v1",
+  "synthetic": true,
+  "created_at": "2000-01-01T00:00:00+00:00",
+  "tool_version": "0.1.0",
+  "config": {"m": 16, "n": 16, "k": 16, "dtype": "float16", "warmup": 1, "repeats": 5, "seed": 1729, "memory_mib": 256},
+  "gpu": {
+    "bdf": "0000:01:00.0",
+    "uuid": "GPU-00000000-0000-0000-0000-000000000000",
+    "name": "SYNTHETIC FIXTURE - NO HARDWARE MEASUREMENT",
+    "vendor_id": "0x10de",
+    "device_id": "0x2206",
+    "memory_bytes": 10737418240,
+    "capability": [8, 6]
+  },
+  "environment": {"kernel": "fixture", "machine": "fixture", "torch": "fixture", "cuda": "fixture", "driver": "fixture", "cuda_env_sha256": "fixture"},
+  "math": {
+    "input": "float16", "output": "float32", "accumulation": "fp32_backend_contract", "backend": "cublas",
+    "flags": {"allow_fp16_reduced_precision_reduction": false, "allow_bf16_reduced_precision_reduction": false, "allow_fp16_accumulation": false, "allow_tf32": false},
+    "kernel_instruction_proof": false
+  },
+  "correctness": {"passed": true, "reference": "quantized_inputs_cpu_float64", "sample_shape": [16, 16], "checked_outputs": 6, "atol": 0.002, "rtol": 0.002, "max_scaled_error": 0.001, "full_output_finite": true},
+  "conditions": {
+    "warm": {"power_limit_w": 300.0, "temperature_c": 60.0, "sm_clock_mhz": 1700.0, "memory_clock_mhz": 9500.0, "pstate": "P2"},
+    "finish": {"power_limit_w": 300.0, "temperature_c": 61.0, "sm_clock_mhz": 1700.0, "memory_clock_mhz": 9500.0, "pstate": "P2"},
+    "no_other_compute_observed": true,
+    "graphics_and_external_load": "unobserved"
+  },
+  "timing": {"method": "cuda_events_synchronized", "samples_ms": [2.0, 2.1, 1.9, 2.0, 2.05]},
+  "unlock_state": "not_determined_by_benchmark"
+}
