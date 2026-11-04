@@ -35,8 +35,11 @@ DEBS    := $(foreach p,dkms firmware,$(DEBDIR)/gpu-unlock-$(p)_$(VERSION)_all.de
 
 all:
 
-.PHONY: test check doctor status
-test:
+.PHONY: test test-engine check doctor status
+test-engine:
+	tests/engine/run.sh
+
+test: test-engine
 	$(PYTHON) -m unittest discover -s tests/plus -v
 
 check: test

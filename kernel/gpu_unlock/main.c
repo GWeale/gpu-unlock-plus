@@ -13,7 +13,11 @@
 
 static char *targets;
 module_param(targets, charp, 0444);
-MODULE_PARM_DESC(targets, "\"all\" or comma-separated PCI addresses of supported Ampere cards to unlock");
+MODULE_PARM_DESC(targets, "\"all\" or comma-separated PCI addresses of supported cards to unlock");
+
+static int direct = GU_SELECT_AUTO;
+module_param(direct, int, 0444);
+MODULE_PARM_DESC(direct, "-1: direct on GA102 (default); 0: legacy PLMs; 1: direct on capable GA10x (other dies experimental). No in-boot fallback");
 
 static bool resume = true;
 module_param(resume, bool, 0644);
@@ -51,13 +55,15 @@ static void unlock_one(void *data, async_cookie_t cookie)
 	int ret;
 
 	pci_dev_lock(pdev);
-	ret = pdev->driver ? -EBUSY : gpu_unlock_610_unlock(&card->device, &shared, false);
+	ret = pdev->driver ? -EBUSY : gpu_unlock_610_unlock(&card->device, &shared, false, direct);
 	pci_dev_unlock(pdev);
-	if (ret)
+	if (ret == -EALREADY)
+		pci_info(pdev, "gpu_unlock: already unlocked; left unchanged\n");
+	else if (ret)
 		pci_err(pdev, "gpu_unlock: unlock failed (%d)\n", ret);
 	else
 		pci_info(pdev, "gpu_unlock: unlocked\n");
-	card->unlocked = !ret;
+	card->unlocked = !ret || ret == -EALREADY;
 }
 
 /* After resume, before nvidia resumes the card it suspended. Losing power in
@@ -72,7 +78,7 @@ static void unlock_again(void *data, async_cookie_t cookie)
 	pci_dev_lock(pdev);
 	nvidia = pdev->driver && !strcmp(pdev->driver->name, "nvidia");
 	if (nvidia)
-		ret = gpu_unlock_610_unlock(&card->device, &shared, true);
+		ret = gpu_unlock_610_unlock(&card->device, &shared, true, direct);
 	pci_dev_unlock(pdev);
 	if (!nvidia)
 		pci_info(pdev, "gpu_unlock: not bound to nvidia, left as is after resume\n");
@@ -172,6 +178,8 @@ static int __init gpu_unlock_init(void)
 	/* Loaded ahead of nvidia on every boot; the command line is the opt-in. */
 	if (!targets || !*targets)
 		return 0;
+	if (direct < GU_SELECT_AUTO || direct > GU_SELECT_DIRECT)
+		return -EINVAL;
 	all = !strcmp(targets, "all");
 	while ((pdev = next_supported(pdev, &recipe))) {
 		if (!all && !listed(pci_name(pdev)))
@@ -212,5 +220,5 @@ static void __exit gpu_unlock_exit(void)
 module_init(gpu_unlock_init);
 module_exit(gpu_unlock_exit);
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Ampere pre-driver hardware unlock");
+MODULE_DESCRIPTION("RTX pre-driver hardware unlock");
 MODULE_VERSION("2.0.0");

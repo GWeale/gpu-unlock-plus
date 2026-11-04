@@ -7,7 +7,7 @@ import re
 from .inventory import inventory
 from .system import BDF
 
-SUCCESS = {"unlocked", "still unlocked after resume", "unlocked again after resume"}
+SUCCESS = {"unlocked", "already unlocked; left unchanged", "still unlocked after resume", "unlocked again after resume"}
 FAILURE = re.compile(r"(?:unlock(?: after resume)?|firmware load) failed \(-?\d+\)$")
 
 

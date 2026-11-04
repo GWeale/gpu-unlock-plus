@@ -3,6 +3,7 @@
 #define GPU_UNLOCK_UNLOCK_610_H
 
 #include "firmware_610.h"
+#include "engine.h"
 
 /*
  * Run the selected family recipe on a cold, unbound supported card, or one nvidia suspended
@@ -12,12 +13,11 @@
  * otherwise a negative errno. A failed transaction may have applied a prefix
  * of the table: it must not be reported as ready. If quiescence cannot be
  * established, DMA buffers and BAR ownership are retained until power off.
- * After resume,
  * -EALREADY means the card kept power and is still unlocked, and nothing was
  * written. Unlocks of different cards may run concurrently with the same
  * shared firmware.
  */
 int gpu_unlock_610_unlock(const struct gu_device *device, const struct gpu_unlock_610_shared *shared,
-			  bool resume);
+			  bool resume, enum gu_selector_mode mode);
 
 #endif

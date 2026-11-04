@@ -307,14 +307,26 @@ int gu_falcon_loader(const struct gu_falcon_io *io, const struct gu_falcon_engin
 	ret = gu_falcon_reset(io, eng, evidence);
 	if (ret)
 		return ret;
-	if (falcon_read(io, eng->base + GU_FALCON_CPUCTL_OFFSET, &ctl) || inaccessible(ctl) || (ctl & 16) ||
+	/* TU10x timing from RakkiPoni #294/9422be4: 10 ms is empirical,
+	 * not a readiness predicate. The caller must verify FWSEC WPR2. */
+	if (program->turing)
+		msleep(10);
+	if (falcon_read(io, eng->base + GU_FALCON_CPUCTL_OFFSET, &ctl) || inaccessible(ctl) ||
+	    (!program->turing && (ctl & 16)) ||
 	    falcon_read(io, eng->base + GU_FALCON_HWCFG_OFFSET, &hwcfg) || inaccessible(hwcfg) ||
 	    falcon_read(io, eng->base + GU_FALCON_DMACTL_OFFSET, &trans) || inaccessible(trans))
 		return -ENODEV;
 	if ((hwcfg & 0x1ff) < 2)
 		return -ERANGE;
 	dst = ((hwcfg & 0x1ff) - 2) << 8;
-	falcon_write(io, eng->base + GU_FALCON_DMACTL_OFFSET, trans & ~1u);
+	if (program->turing) {
+		if (falcon_read(io, eng->fbif + GU_FBIF_CTL_OFFSET, &trans) || inaccessible(trans))
+			return -EIO;
+		falcon_write(io, eng->fbif + GU_FBIF_CTL_OFFSET, trans | (1u << 7));
+		falcon_write(io, eng->base + GU_FALCON_DMACTL_OFFSET, 0);
+	} else {
+		falcon_write(io, eng->base + GU_FALCON_DMACTL_OFFSET, trans & ~1u);
+	}
 	if (falcon_read(io, eng->fbif + GU_FBIF_TRANSCFG(4), &trans) || inaccessible(trans))
 		return -ENODEV;
 	falcon_write(io, eng->fbif + GU_FBIF_TRANSCFG(4), (trans & ~7u) | 5u);
@@ -377,11 +389,19 @@ int gu_falcon_direct(const struct gu_falcon_io *io, const struct gu_falcon_engin
 	int ret;
 
 	memset(evidence, 0, sizeof(*evidence));
+	if (!image || !program->image_size || !program->os_code_size ||
+	    !program->app_code_size || !program->os_data_size ||
+	    ((program->os_code_off | program->os_code_size | program->app_code_off |
+	      program->app_code_size | program->os_data_off | program->os_data_size) & 3) ||
+	    (u64)program->os_code_off + program->os_code_size > program->image_size ||
+	    (u64)program->app_code_off + program->app_code_size > program->image_size ||
+	    (u64)program->os_data_off + program->os_data_size > program->image_size)
+		return -EINVAL;
 	ret = gu_falcon_reset(io, eng, evidence);
 	if (ret)
 		return ret;
-	ret = gu_falcon_poll(io, eng->base + GU_FALCON_CPUCTL_OFFSET, 16, 0, 1000, true, NULL);
-	if (ret)
+	ret = gu_falcon_poll(io, eng->base + GU_FALCON_CPUCTL_OFFSET, 16, 0, 1000, !program->turing, NULL);
+	if (ret && !(program->turing && ret == -ETIMEDOUT))
 		return ret;
 	/* REQUIRE_CTX=false, matching kflcnDisableCtxReq. */
 	if (falcon_read(io, eng->base + GU_FALCON_DMACTL_OFFSET, &ctl) || inaccessible(ctl))

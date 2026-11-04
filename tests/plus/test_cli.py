@@ -137,6 +137,12 @@ class CliTests(unittest.TestCase):
             self.assertFalse(report["cards"])
             self.assertIn("incomplete", report["inventory_issues"][0])
 
+    def test_kept_power_engine_message_is_current_boot_evidence(self):
+        self.card()
+        journal = self.log(self.journal("already unlocked; left unchanged"))
+        report = self.report("status", "--journal", str(journal))
+        self.assertEqual(report["cards"][0]["state"], "unlocked")
+
     def test_configuration_and_module_do_not_prove_unlock(self):
         self.card()
         self.put("/sys/module/gpu_unlock/parameters/targets", "all")

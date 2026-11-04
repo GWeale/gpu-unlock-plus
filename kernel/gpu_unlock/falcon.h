@@ -38,6 +38,8 @@ struct gu_falcon_hs_image {
 };
 struct gu_falcon_direct_image {
 	const u32 *words;
+	size_t image_size;
+	bool turing; /* TU10x SEC2 alone tolerates stale HALTED after reset. */
 	u32 os_code_off, os_code_size, app_code_off, app_code_size;
 	u32 os_data_off, os_data_size;
 	u32 mailbox0, mailbox1;
@@ -45,6 +47,7 @@ struct gu_falcon_direct_image {
 struct gu_falcon_loader_image {
 	const u32 *loader;
 	size_t loader_size;
+	bool turing; /* TU10x GSP reset timing/physical-no-context sequence. */
 	dma_addr_t dma;
 	u32 data_off, imem_pa, imem_ns_size, imem_sec_pa, imem_sec_size, dmem_size;
 };

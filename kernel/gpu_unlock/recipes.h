@@ -61,6 +61,7 @@ struct gu_family {
 	const char *loader; /* NULL when this family has no generic loader */
 	u8 fwsec_version;
 	u32 feat_plm, feat_ss0, feat_ss1;
+	bool direct_selectors; /* Signed GA10x Booter can write SS0/SS1 at L3. */
 	bool turing_layout; /* VBIOS FB-range register and no MMU lock */
 };
 struct gu_card {
