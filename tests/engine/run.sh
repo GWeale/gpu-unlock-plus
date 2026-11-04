@@ -22,6 +22,10 @@ $cc $flags $includes tests/engine/hs_preflight_test.c kernel/gpu_unlock/falcon.c
 $cc $flags $includes tests/engine/engine_test.c kernel/gpu_unlock/engine.c \
     kernel/gpu_unlock/recipes.c kernel/gpu_unlock/payload.c \
     kernel/gpu_unlock/falcon.c kernel/gpu_unlock/prep_610.c -o "$work/engine"
+$cc $flags $includes tests/engine/session_test.c kernel/gpu_unlock/session.c \
+    kernel/gpu_unlock/engine.c kernel/gpu_unlock/recipes.c kernel/gpu_unlock/payload.c \
+    kernel/gpu_unlock/falcon.c kernel/gpu_unlock/prep_610.c -o "$work/session"
+"$work/session"
 "$work/engine"
 "$work/engine" "$work/turing.bin"
 # nlzy/turing-unlock's two-write signature, also pinned in RakkiPoni #294.

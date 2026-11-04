@@ -4,20 +4,19 @@
 
 #include "firmware_610.h"
 #include "engine.h"
+#include "session.h"
 
-/*
- * Run the selected family recipe on a cold, unbound supported card, or one nvidia suspended
- * before a suspend to RAM and resumes after this returns. The caller holds
- * pci_dev_lock and supplies the context resolved during enumeration. Returns
- * 0 when the card is unlocked and handed back as found;
- * otherwise a negative errno. A failed transaction may have applied a prefix
- * of the table: it must not be reported as ready. If quiescence cannot be
- * established, DMA buffers and BAR ownership are retained until power off.
- * -EALREADY means the card kept power and is still unlocked, and nothing was
- * written. Unlocks of different cards may run concurrently with the same
- * shared firmware.
- */
-int gpu_unlock_610_unlock(const struct gu_device *device, const struct gpu_unlock_610_shared *shared,
-			  bool resume, enum gu_selector_mode mode);
+/* Read-only assessment in the pre-driver/pre-NVIDIA-resume window. The caller
+ * holds pci_dev_lock. No firmware, allocation of DMA, PCI config or BAR writes.
+ * With decoding disabled, cold assessment defers to the mutating transaction;
+ * resume assessment refuses it. EALREADY requires both observed selectors. */
+int gpu_unlock_610_assess(const struct gu_device *device, bool resume,
+			  enum gu_selector_mode mode);
+
+/* The caller holds pci_dev_lock and rechecks driver ownership. Uncertain DMA
+ * or failed ownership restoration pins the module until recovery by power off.
+ * Both operation and cleanup errors survive in the result. */
+struct gu_attempt gpu_unlock_610_unlock(const struct gu_device *device,
+		const struct gpu_unlock_610_shared *shared, bool resume, enum gu_selector_mode mode);
 
 #endif
