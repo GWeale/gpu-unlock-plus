@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 """Versioned, correctness-checked GEMM captures with conservative comparison."""
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, fields
 from contextlib import contextmanager
 from datetime import datetime, timezone
 import csv
@@ -269,6 +269,8 @@ def validate_result(result):
     try:
         if result["schema"] != SCHEMA or type(result["synthetic"]) is not bool:
             raise ValueError("Unsupported benchmark schema or synthetic marker.")
+        if not isinstance(result["config"], dict) or set(result["config"]) != {field.name for field in fields(BenchmarkConfig)}:
+            raise ValueError("Incomplete or unrecognized benchmark configuration.")
         config = BenchmarkConfig(**result["config"])
         config.validate()
         if not isinstance(result["tool_version"], str) or not result["tool_version"]:

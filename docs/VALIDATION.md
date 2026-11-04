@@ -44,10 +44,14 @@ regression found during focused checking was also corrected before completion.
 - No NVIDIA hardware or CUDA-enabled torch environment was available on Hatter.
   GPU capture success, actual precision/instruction selection, unlock retention,
   resume behavior, power behavior and performance were not validated.
-- No independent hidden native reviewer was available through this runtime's
-  exposed tools. The only native agent route is visible, which was outside the
-  permitted review route. A focused self-review was performed. Independent review
-  remains unmet; tests and self-review do not count as independent approval.
+- The initial Hatter runtime had no permitted hidden native review route.
+  The lead later obtained a fresh-context, read-only native review from Desktop
+  of revision `247ad059004c36002cc58dafba47ccb737ed5f69`.
+  It found that incomplete benchmark configurations could receive defaults and
+  pass comparison. The lead reproduced the defect, required the exact field set,
+  and added a regression case for every configuration field.
+  The focused regression passes in memory against the amended source.
+  This review did not validate successful CUDA capture or GPU behavior.
 - The upstream container matrix (`make test-module`, `make test-packages`) was
   not run. It downloads dependencies and package inputs. Available host headers
   were used directly instead; packaging staging was tested in fake roots.
@@ -66,5 +70,5 @@ under `~/.local/state/gpu-unlock-plus/`.
 
 Inherited CI is manual-only. The release-producing Unraid discovery job is also
 guarded to the original upstream repository. Private backup does not authorize
-public release or installation. The release is ready for code review; independent
-review and separately authorized NVIDIA hardware testing are the next gates.
+public release or installation. The independent review finding is corrected.
+Separately authorized NVIDIA hardware testing remains unrun.

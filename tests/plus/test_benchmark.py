@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 import copy
-from dataclasses import replace
+from dataclasses import fields, replace
 import json
 import math
 from pathlib import Path
@@ -51,6 +51,15 @@ class BenchmarkTests(unittest.TestCase):
                 result = compare(self.baseline, candidate)
                 self.assertFalse(result["compatible"])
                 self.assertNotIn("timing_ratio", result)
+
+    def test_missing_configuration_fields_are_rejected(self):
+        for field in fields(BenchmarkConfig):
+            with self.subTest(field=field.name):
+                before, after = copy.deepcopy(self.baseline), copy.deepcopy(self.candidate)
+                del before["config"][field.name]
+                del after["config"][field.name]
+                with self.assertRaisesRegex(ValueError, "configuration"):
+                    compare(before, after)
 
     def test_conditions_and_within_run_drift_refuse_ratio(self):
         for field, value in (("temperature_c", 70), ("power_limit_w", 320), ("sm_clock_mhz", 2000),
