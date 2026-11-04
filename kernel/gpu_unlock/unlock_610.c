@@ -776,6 +776,19 @@ static int unlock_transaction_dma(struct unlock_transaction_work *work)
 	}
 }
 
+static int begin_fwsec(struct unlock_transaction_work *work)
+{
+	u16 command;
+	pci_set_master(work->pdev);
+	work->master = true;
+	if (diag_pci_word(work, false, PCI_COMMAND, &command) ||
+	    command == 0xffff || !(command & PCI_COMMAND_MASTER))
+		return GU_RESULT(-EIO);
+	/* Validation precedes this point; reset/load uncertainty still retains DMA. */
+	work->firmware_started = true;
+	return 0;
+}
+
 static int unlock_transaction_fwsec(struct unlock_transaction_work *work)
 {
 	static const struct gu_falcon_engine gsp = {
@@ -786,7 +799,6 @@ static int unlock_transaction_fwsec(struct unlock_transaction_work *work)
 	u8 *rom = NULL;
 	struct gpu_unlock_fwsec fw;
 	u32 fuse_raw = 0, version = 0, scratch = 0, wpr_lo = 0, wpr_hi = 0;
-	u16 command;
 	struct gu_falcon_evidence launch = { };
 	u64 frts = work->layout.frts_offset;
 	int ret;
@@ -836,16 +848,6 @@ static int unlock_transaction_fwsec(struct unlock_transaction_work *work)
 			goto out;
 		memcpy((u8 *)work->fwsec.cpu + fw.data_off + fw.pkc_off, rom + fw.sig_off + sig_at, 384);
 	}
-	pci_set_master(work->pdev);
-	work->master = true;
-	if (diag_pci_word(work, false, PCI_COMMAND, &command) ||
-	    command == 0xffff || !(command & PCI_COMMAND_MASTER)) {
-		ret = -EIO;
-		goto out;
-	}
-	/* Preserve conservative DMA retention from the moment FWSEC may access it,
-	 * including reset/load failures. Launch evidence is observed separately. */
-	work->firmware_started = true;
 	if (fw.version == 2) {
 		const struct gu_falcon_loader_image program = {
 			.loader = work->loader_fw ? (const u32 *)work->loader_fw->data : NULL,
@@ -856,7 +858,11 @@ static int unlock_transaction_fwsec(struct unlock_transaction_work *work)
 			.imem_sec_pa = fw.imem_sec_pa, .imem_sec_size = fw.imem_sec_size,
 			.dmem_size = fw.dmem_size,
 		};
-		ret = gu_falcon_loader(&io, &gsp, &program, &launch);
+		ret = gu_falcon_loader_validate(&program);
+		if (!ret)
+			ret = begin_fwsec(work);
+		if (!ret)
+			ret = gu_falcon_loader(&io, &gsp, &program, &launch);
 	} else {
 		const struct gu_falcon_hs_image program = {
 			.dma = work->fwsec.dma, .code_off = 0, .code_size = fw.imem_size,
@@ -867,7 +873,11 @@ static int unlock_transaction_fwsec(struct unlock_transaction_work *work)
 			/* The WPR2 check below proves FWSEC-FRTS ran. */
 			.stale_halt_ok = true,
 		};
-		ret = gu_falcon_hs(&io, &gsp, &program, &launch);
+		ret = gu_falcon_hs_validate(&program);
+		if (!ret)
+			ret = begin_fwsec(work);
+		if (!ret)
+			ret = gu_falcon_hs(&io, &gsp, &program, &launch);
 	}
 	if (ret)
 		goto out;

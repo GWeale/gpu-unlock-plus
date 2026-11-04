@@ -52,6 +52,11 @@ struct gu_falcon_loader_image {
 	u32 data_off, imem_pa, imem_ns_size, imem_sec_pa, imem_sec_size, dmem_size;
 };
 
+/* Pure transport validation: no MMIO, reset or DMA submission. */
+int gu_falcon_hs_validate(const struct gu_falcon_hs_image *image);
+int gu_falcon_loader_validate(const struct gu_falcon_loader_image *image);
+int gu_falcon_direct_validate(const struct gu_falcon_direct_image *image);
+
 int gu_falcon_poll(const struct gu_falcon_io *io, u32 offset, u32 mask, u32 expect,
 		   unsigned int budget_us, bool timeout_is_failure, u32 *last);
 int gu_falcon_dma(const struct gu_falcon_io *io, u32 base, u32 dest, u32 mem_off,

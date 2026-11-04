@@ -206,15 +206,12 @@ int gu_falcon_dma(const struct gu_falcon_io *io, u32 base, u32 dest, u32 mem_off
 	return gu_falcon_poll(io, base + GU_FALCON_DMATRFCMD_OFFSET, 2, 2, 1000000, true, NULL);
 }
 
-int gu_falcon_hs(const struct gu_falcon_io *io, const struct gu_falcon_engine *eng,
-		 const struct gu_falcon_hs_image *program,
-		 struct gu_falcon_evidence *evidence)
+int gu_falcon_hs_validate(const struct gu_falcon_hs_image *program)
 {
-	u32 trans, cpuctl;
 	dma_addr_t code_src;
-	int ret;
 
-	memset(evidence, 0, sizeof(*evidence));
+	if (!program)
+		return -EINVAL;
 	if (program->dma > ~0ull - program->code_off ||
 	    program->dma + program->code_off < program->code_va ||
 	    program->dma > ~0ull - program->data_off)
@@ -224,6 +221,29 @@ int gu_falcon_hs(const struct gu_falcon_io *io, const struct gu_falcon_engine *e
 	    (program->data_size && !falcon_dma_valid(program->data_pa, 0,
 						  program->dma + program->data_off, program->data_size)))
 		return -EINVAL;
+	if (program->os_code_size) {
+		if (program->dma > ~0ull - program->os_code_off)
+			return -ERANGE;
+		if (!falcon_dma_valid(0, 0, program->dma + program->os_code_off,
+				      program->os_code_size))
+			return -EINVAL;
+	}
+	return 0;
+}
+
+int gu_falcon_hs(const struct gu_falcon_io *io, const struct gu_falcon_engine *eng,
+		 const struct gu_falcon_hs_image *program,
+		 struct gu_falcon_evidence *evidence)
+{
+	u32 trans, cpuctl;
+	dma_addr_t code_src;
+	int ret;
+
+	memset(evidence, 0, sizeof(*evidence));
+	ret = gu_falcon_hs_validate(program);
+	if (ret)
+		return ret;
+	code_src = program->dma + program->code_off - program->code_va;
 	ret = gu_falcon_reset(io, eng, evidence);
 	if (ret)
 		return ret;
@@ -290,6 +310,17 @@ int gu_falcon_hs(const struct gu_falcon_io *io, const struct gu_falcon_engine *e
  * RM_FLCN_BL_DMEM_DESC (84 bytes); loader identity/geometry is pinned by the
  * extractor. The loader uses DMA index 4, coherent physical system memory.
  */
+int gu_falcon_loader_validate(const struct gu_falcon_loader_image *program)
+{
+	if (!program)
+		return -EINVAL;
+	if (!program->loader || program->loader_size != 768 ||
+	    (program->dma & 255) || program->dma > ~0ull - program->data_off ||
+	    (program->data_off & 255))
+		return -EINVAL;
+	return 0;
+}
+
 int gu_falcon_loader(const struct gu_falcon_io *io, const struct gu_falcon_engine *eng,
 		     const struct gu_falcon_loader_image *program,
 		     struct gu_falcon_evidence *evidence)
@@ -299,10 +330,9 @@ int gu_falcon_loader(const struct gu_falcon_io *io, const struct gu_falcon_engin
 	int ret;
 
 	memset(evidence, 0, sizeof(*evidence));
-	if (!program->loader || program->loader_size != 768 ||
-	    (program->dma & 255) || program->dma > ~0ull - program->data_off ||
-	    (program->data_off & 255))
-		return -EINVAL;
+	ret = gu_falcon_loader_validate(program);
+	if (ret)
+		return ret;
 	code = program->loader;
 	ret = gu_falcon_reset(io, eng, evidence);
 	if (ret)
@@ -380,16 +410,11 @@ static void falcon_pio_imem(const struct gu_falcon_io *io, u32 base, const u32 *
 	}
 }
 
-int gu_falcon_direct(const struct gu_falcon_io *io, const struct gu_falcon_engine *eng,
-		     const struct gu_falcon_direct_image *program,
-		     struct gu_falcon_evidence *evidence)
+int gu_falcon_direct_validate(const struct gu_falcon_direct_image *program)
 {
-	const u32 *image = program->words;
-	u32 i, ctl;
-	int ret;
-
-	memset(evidence, 0, sizeof(*evidence));
-	if (!image || !program->image_size || !program->os_code_size ||
+	if (!program)
+		return -EINVAL;
+	if (!program->words || !program->image_size || !program->os_code_size ||
 	    !program->app_code_size || !program->os_data_size ||
 	    ((program->os_code_off | program->os_code_size | program->app_code_off |
 	      program->app_code_size | program->os_data_off | program->os_data_size) & 3) ||
@@ -397,6 +422,22 @@ int gu_falcon_direct(const struct gu_falcon_io *io, const struct gu_falcon_engin
 	    (u64)program->app_code_off + program->app_code_size > program->image_size ||
 	    (u64)program->os_data_off + program->os_data_size > program->image_size)
 		return -EINVAL;
+	return 0;
+}
+
+int gu_falcon_direct(const struct gu_falcon_io *io, const struct gu_falcon_engine *eng,
+		     const struct gu_falcon_direct_image *program,
+		     struct gu_falcon_evidence *evidence)
+{
+	const u32 *image;
+	u32 i, ctl;
+	int ret;
+
+	memset(evidence, 0, sizeof(*evidence));
+	ret = gu_falcon_direct_validate(program);
+	if (ret)
+		return ret;
+	image = program->words;
 	ret = gu_falcon_reset(io, eng, evidence);
 	if (ret)
 		return ret;
