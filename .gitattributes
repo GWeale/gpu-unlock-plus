@@ -4,6 +4,8 @@
 /Makefile -export-ignore
 /README.md -export-ignore
 /UPSTREAM.md -export-ignore
+# Preserve the archived upstream Markdown hard breaks verbatim.
+/UPSTREAM.md whitespace=-blank-at-eol
 /gpu-unlock-plus -export-ignore
 /gpu_unlock_plus -export-ignore
 /docs -export-ignore
