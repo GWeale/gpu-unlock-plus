@@ -207,10 +207,19 @@ static void quiescence_cases(void)
 	struct gu_falcon_io mmio = io(&f);
 	*reg(&f, GU_GSP_BASE + GU_FALCON_CPUCTL_OFFSET) = 16;
 	*reg(&f, GU_SEC2_BASE + GU_FALCON_CPUCTL_OFFSET) = 16;
+	const u32 dma[] = { GU_GSP_BASE + GU_FALCON_DMATRFCMD_OFFSET,
+		GU_SEC2_BASE + GU_FALCON_DMATRFCMD_OFFSET };
+	for (size_t i = 0; i < sizeof(dma) / sizeof(dma[0]); i++)
+		*reg(&f, dma[i]) = 2;
 	assert(!gu_engine_turing_quiesce(&mmio));
-	*reg(&f, GU_SEC2_BASE + GU_FALCON_DMATRFCMD_OFFSET) = 1;
-	assert(gu_engine_turing_quiesce(&mmio) == -ETIMEDOUT);
-	*reg(&f, GU_SEC2_BASE + GU_FALCON_DMATRFCMD_OFFSET) = 0;
+	for (size_t i = 0; i < sizeof(dma) / sizeof(dma[0]); i++) {
+		/* FULL=0 does not imply IDLE=1. Both active queue states fail. */
+		*reg(&f, dma[i]) = 0;
+		assert(gu_engine_turing_quiesce(&mmio) == -ETIMEDOUT);
+		*reg(&f, dma[i]) = 1;
+		assert(gu_engine_turing_quiesce(&mmio) == -ETIMEDOUT);
+		*reg(&f, dma[i]) = 2;
+	}
 	*reg(&f, GU_GSP_BASE + GU_FALCON_CPUCTL_OFFSET) = 0;
 	assert(gu_engine_turing_quiesce(&mmio) == -ETIMEDOUT);
 	f.fault = GU_GSP_BASE + GU_FALCON_CPUCTL_OFFSET;

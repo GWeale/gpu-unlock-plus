@@ -17,6 +17,13 @@ FP32 control at shapes 2048 and 4096. The improved-module trial is pending.
 Repeat that same instrument and settings after the trial. Do not substitute
 the optional PyTorch CLI capture and compare unlike measurement contracts.
 
+Before installation, capture the stock phase with the final reusable private
+instrument on Desktop:
+
+```sh
+python3 "$HOME/.cache/gpu-unlock-plus/stock_baseline.py" --phase stock
+```
+
 ## Build reviewed packages on Hatter
 
 Use the existing owner checkout. Do not create another writable project checkout
@@ -158,8 +165,16 @@ not a successful new trial. A missing direct-mode verification line, failed
 handoff, or retained DMA allocation fails the pilot. Capture the logs and
 recover. Do not reload, switch to PLM mode, or launch Booter again in that boot.
 
-Only after the engine evidence passes, rerun the parent's exact private cuBLAS
-instrument. Preserve its math controls, shapes, seed, windows, repeat count,
+Only after the engine evidence passes, run the pilot phase of that same
+instrument:
+
+```sh
+python3 "$HOME/.cache/gpu-unlock-plus/stock_baseline.py" --phase pilot
+```
+
+Use the same script digest in both records. The phase guard checks module
+presence only; it does not replace the engine-evidence requirements above.
+Preserve its math controls, shapes, input construction, windows, repeat count,
 correctness checks, and observed desktop graphics load. Compare the stock and
 pilot correctness, timing dispersion, power, clocks, and temperature. Label
 any result as this local desktop experiment. It cannot prove application

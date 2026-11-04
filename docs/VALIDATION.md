@@ -47,6 +47,24 @@ physical device failure are not exercised by the host fixtures. The kernel
 retains its conservative ownership rule: uncertain firmware execution retains
 DMA buffers and BAR ownership until power off.
 
+## Independent review correction
+
+A fresh-context native review on Desktop examined revision
+`6574d192f3b794696fef236385909cf2ed38aa21` and found one material defect.
+The new Turing no-FLR handoff checked that the DMA queue was not full instead
+of checking that DMA was idle. NVIDIA's pinned
+[TU102 definitions](https://github.com/NVIDIA/open-gpu-kernel-modules/blob/610.43.03/src/common/inc/swref/published/turing/tu102/dev_falcon_v4.h#L77)
+assign FULL to bit 0 and IDLE to bit 1. The handoff now requires IDLE=1 for
+both GSP and SEC2 before releasing buffers.
+
+The lead reproduced the defect against the reviewed production C: halted
+engines with FULL=0 and IDLE=0 incorrectly passed. The amended production C
+passes the expanded fixture under normal compilation and AddressSanitizer
+plus UndefinedBehaviorSanitizer. Each engine is checked with not-full/busy,
+full/busy, and idle states. No hardware operations were used for this check.
+The independent reviewer found no other material issue in that bounded pass;
+this does not certify physical firmware or suspend behavior.
+
 ## Checks
 
 | Check | Result |
@@ -59,7 +77,7 @@ DMA buffers and BAR ownership until power off.
 | Private package staging | Passed in the existing fake-root packaging check; includes `engine.c` and `engine.h` through the existing module source glob |
 | Physical improved-module tests | Not run |
 | Container distribution matrix, firmware generation and real package installation | Not run |
-| Hidden independent review | Unavailable in this runtime; direct focused review completed, parent review remains required |
+| Hidden independent review | Completed on Desktop against `6574d19`; one DMA-idle defect corrected and regression-tested |
 
 The module build reports the GCC executable-name difference, matching GCC
 15.2.0 versions, unavailable `pahole`, and skipped BTF because `vmlinux` is absent.

@@ -112,9 +112,10 @@ int gu_engine_turing_quiesce(const struct gu_falcon_io *io)
 	for (i = 0; i < sizeof(bases) / sizeof(bases[0]); i++) {
 		ret = gu_falcon_poll(io, bases[i] + GU_FALCON_CPUCTL_OFFSET,
 				     16, 16, 1000000, true, NULL);
+		/* FULL=0 only permits another queued command; IDLE is bit 1. */
 		if (!ret)
 			ret = gu_falcon_poll(io, bases[i] + GU_FALCON_DMATRFCMD_OFFSET,
-					     1, 0, 1000000, true, NULL);
+					     2, 2, 1000000, true, NULL);
 		if (ret)
 			return ret;
 	}
