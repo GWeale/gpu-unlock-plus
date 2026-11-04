@@ -1,4 +1,4 @@
-# Contributing to GPU Unlock Plus
+# Contributing to Tensor Reclaim
 
 Changes should improve the engine, its evidence, or the tools that help people
 use it. Keep each pull request focused and preserve upstream attribution.
@@ -29,6 +29,11 @@ build inputs and tests package installation inside containers.
 
 ## Prepare a pull request
 
+`main` requires a pull request and both CPU CI checks, including for
+administrators. Branches must be up to date, and review conversations must be
+resolved before merge. Direct pushes, force pushes, and branch deletion are
+blocked. Use a feature branch and squash or rebase when merging.
+
 - Explain the observable problem, the change, and how you checked it.
 - Add a focused regression for changed behavior. Exercise production code or
   a public CLI rather than duplicating the implementation in a test.
@@ -47,7 +52,7 @@ manual procedure.
 
 ## Report a problem
 
-Search [existing fork issues](https://github.com/GWeale/gpu-unlock-plus/issues)
+Search [existing fork issues](https://github.com/GWeale/tensor-reclaim/issues)
 first. Include the fork commit and reproduction steps. Use the unlock-failure
 form when a card fails to unlock, gains no speed, or loses the unlock later.
 For CLI problems, include the command and a small redacted input when relevant.

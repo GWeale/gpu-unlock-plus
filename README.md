@@ -1,8 +1,8 @@
-![GPU Unlock Plus: Linux RTX 20 and 30 engine work, source evidence, and repeatable checks](assets/plus-banner.svg)
+![Tensor Reclaim: conceptual GPU silicon illustration for RTX 20 and 30 Linux kernel engineering](assets/tensor-reclaim-banner.png)
 
-# GPU Unlock Plus
+# Tensor Reclaim
 
-[![Checks](https://github.com/GWeale/gpu-unlock-plus/actions/workflows/checks.yml/badge.svg?branch=main)](https://github.com/GWeale/gpu-unlock-plus/actions/workflows/checks.yml)
+[![Checks](https://github.com/GWeale/tensor-reclaim/actions/workflows/checks.yml/badge.svg?branch=main)](https://github.com/GWeale/tensor-reclaim/actions/workflows/checks.yml)
 [![License: GPL-2.0-only](https://img.shields.io/badge/license-GPL--2.0--only-blue)](LICENSE)
 
 [Quick start](#quick-start) · [Engine changes](#engine-changes-and-evidence) ·
@@ -19,6 +19,9 @@ The goal is reliable access to the hardware's unlocked tensor rate. This fork
 claims no rate beyond that unlock and no measured speed advantage over upstream.
 The improved-module RTX 3080 trial is **pending**. Turing remains **experimental**.
 
+Previously **GPU Unlock Plus**. Existing `gpu-unlock-plus` commands, the
+`gpu_unlock` module, and package names remain compatible.
+
 Fork CLI version **0.1.0**. Kernel/package version remains **2.0.0**; identify a
 fork build by its Git revision and module hash. Upstream base:
 `7eb51bccae0a0b7e599e084d971170e9a1e82d0c`.
@@ -31,8 +34,8 @@ Inspect a Linux host with Python 3.10 or later. These commands use the standard
 library and do not install anything, change boot settings, or access GPU registers.
 
 ```sh
-git clone https://github.com/GWeale/gpu-unlock-plus.git
-cd gpu-unlock-plus
+git clone https://github.com/GWeale/tensor-reclaim.git
+cd tensor-reclaim
 ./gpu-unlock-plus doctor
 ./gpu-unlock-plus status
 ```
@@ -211,7 +214,7 @@ provisioned build environment. They can download dependencies and run installers
 inside containers; `make check` does neither.
 
 [Validation and known limits](docs/VALIDATION.md) records the observed checks.
-The [Checks workflow](https://github.com/GWeale/gpu-unlock-plus/actions/workflows/checks.yml)
+The [Checks workflow](https://github.com/GWeale/tensor-reclaim/actions/workflows/checks.yml)
 runs CPU-only tests on pushes to `main` and pull requests, with Python 3.10 and
 3.13 and a C sanitizer pass. It does not install the module or test a physical GPU.
 The inherited distribution matrix remains manual-only. The Unraid publisher is
@@ -222,7 +225,7 @@ published automatically.
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) for local checks, source attribution,
 hardware evidence requirements, and issue reporting. Track fork problems in
-[Issues](https://github.com/GWeale/gpu-unlock-plus/issues), review changes in
+[Issues](https://github.com/GWeale/tensor-reclaim/issues), review changes in
 [the changelog](CHANGELOG.md), and report vulnerabilities through
 [the security policy](SECURITY.md). Public reports should contain only the
 relevant, redacted evidence.
@@ -234,7 +237,9 @@ The engine, packaging, and added CLI/tests are GPL-2.0-only. See
 [licenses/CMP40HX-MIT.txt](licenses/CMP40HX-MIT.txt),
 [licenses/NVIDIA-MIT.txt](licenses/NVIDIA-MIT.txt), and
 [firmware/NOTICE.md](firmware/NOTICE.md). Zagitta and the upstream contributors
-created the unlock engine. Petri Krohn's GA102 chain remains credited in source.
+created the unlock engine. The [banner artwork](assets/ARTWORK.md) is a
+conceptual illustration generated for this project. Petri Krohn's GA102 chain
+remains credited in source.
 The Turing integration credits RakkiPoni and nlzy; direct selectors credit Lukium.
 GWeale's fork narrows their proposals, enforces readback and transaction gates,
 adds host C regression checks, restores reported recipes, and retains the workflow

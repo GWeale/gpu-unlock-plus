@@ -1,4 +1,4 @@
-# Changelog
+# Tensor Reclaim changelog
 
 This file records changes in the fork. The CLI is version 0.1.0; the inherited
 kernel/package version is 2.0.0. Use the Git commit to identify an engine build.
@@ -28,6 +28,11 @@ No packaged fork release has been published.
 - Preserve private capture outputs and label synthetic benchmark fixtures.
 
 ### Project
+
+- Rename the project to Tensor Reclaim and add new banner artwork. Preserve
+  existing CLI, kernel module, and package interfaces.
+- Protect `main` with mandatory pull requests, both current CPU CI checks,
+  resolved conversations, linear history, and administrator enforcement.
 
 - Add automatic CPU-only checks, contribution and security guidance, fork
   branding, and a root GPL license copy.
