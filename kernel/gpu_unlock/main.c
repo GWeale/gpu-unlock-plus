@@ -28,8 +28,8 @@ MODULE_PARM_DESC(resume, "Unlock the cards again after resume from suspend, whic
 struct card {
 	struct list_head node;
 	struct gu_device device;
-	bool unlocked;
-	bool prepared;
+	struct gu_session session;
+	bool resuming;
 };
 
 static LIST_HEAD(cards);
@@ -47,66 +47,90 @@ static struct pci_dev *next_supported(struct pci_dev *from, const struct gu_card
 	return NULL;
 }
 
-/* At boot, before nvidia binds the card. Runs concurrently for each card. */
-static void unlock_one(void *data, async_cookie_t cookie)
+static bool owned_window(const struct card *card)
 {
-	struct card *card = data;
+	const struct pci_driver *driver = card->device.pdev->driver;
+	return card->resuming ? driver && !strcmp(driver->name, "nvidia") : !driver;
+}
+
+static int assess_card(void *context)
+{
+	struct card *card = context;
 	struct pci_dev *pdev = card->device.pdev;
 	int ret;
-
 	pci_dev_lock(pdev);
-	ret = pdev->driver ? -EBUSY : gpu_unlock_610_unlock(&card->device, &shared, false, direct);
+	ret = owned_window(card) ?
+		gpu_unlock_610_assess(&card->device, card->resuming, direct) : -EBUSY;
 	pci_dev_unlock(pdev);
-	if (ret == -EALREADY)
-		pci_info(pdev, "gpu_unlock: already unlocked; left unchanged\n");
-	else if (ret)
-		pci_err(pdev, "gpu_unlock: unlock failed (%d)\n", ret);
-	else
-		pci_info(pdev, "gpu_unlock: unlocked\n");
-	card->unlocked = !ret || ret == -EALREADY;
+	return ret;
 }
-
-/* After resume, before nvidia resumes the card it suspended. Losing power in
- * suspend to RAM reset the selectors. Runs concurrently for each card. */
-static void unlock_again(void *data, async_cookie_t cookie)
+static int prepare_card(void *context)
+{
+	struct card *card = context;
+	struct pci_dev *pdev = card->device.pdev;
+	int ret;
+	pci_dev_lock(pdev);
+	ret = owned_window(card) ? gpu_unlock_610_load_shared(&card->device, &shared) : -EBUSY;
+	pci_dev_unlock(pdev);
+	return ret;
+}
+static struct gu_attempt execute_card(void *context)
+{
+	struct card *card = context;
+	struct pci_dev *pdev = card->device.pdev;
+	struct gu_attempt result = { .operation_error = -EBUSY };
+	pci_dev_lock(pdev);
+	if (owned_window(card))
+		result = gpu_unlock_610_unlock(&card->device, &shared, card->resuming, direct);
+	pci_dev_unlock(pdev);
+	return result;
+}
+static struct gu_session_ops card_ops(struct card *card)
+{
+	return (struct gu_session_ops){ card, assess_card, prepare_card, execute_card };
+}
+static void report_card(struct card *card, int ret)
+{
+	struct pci_dev *pdev = card->device.pdev;
+	const struct gu_session *s = &card->session;
+	pci_info(pdev, "gpu_unlock: stage=session round=%llu phase=%u state=%u operation=%d cleanup=%d retained=%u result=%d\n",
+		 (unsigned long long)s->round, s->stage, s->state,
+		 s->last.operation_error, s->last.cleanup_error, s->last.retained, ret);
+	if (s->state == GU_SESSION_POWER_OFF_REQUIRED)
+		pci_err(pdev, "gpu_unlock: power off required; further attempts refused\n");
+	if (ret == -EALREADY)
+		pci_info(pdev, "gpu_unlock: %s\n", card->resuming ?
+			 "still unlocked after resume" : "already unlocked; left unchanged");
+	else if (ret)
+		pci_err(pdev, "gpu_unlock: %s failed (%d)\n",
+			 s->stage == GU_SESSION_FIRMWARE ? "firmware load" :
+			 card->resuming ? "unlock after resume" : "unlock", ret);
+	else
+		pci_info(pdev, "gpu_unlock: %s\n", card->resuming ? "unlocked again after resume" : "unlocked");
+}
+static void execute_one(void *data, async_cookie_t cookie)
 {
 	struct card *card = data;
-	struct pci_dev *pdev = card->device.pdev;
-	bool nvidia;
-	int ret = 0;
-
-	pci_dev_lock(pdev);
-	nvidia = pdev->driver && !strcmp(pdev->driver->name, "nvidia");
-	if (nvidia)
-		ret = gpu_unlock_610_unlock(&card->device, &shared, true, direct);
-	pci_dev_unlock(pdev);
-	if (!nvidia)
-		pci_info(pdev, "gpu_unlock: not bound to nvidia, left as is after resume\n");
-	else if (ret == -EALREADY)
-		pci_info(pdev, "gpu_unlock: still unlocked after resume\n");
-	else if (ret)
-		pci_err(pdev, "gpu_unlock: unlock after resume failed (%d)\n", ret);
-	else
-		pci_info(pdev, "gpu_unlock: unlocked again after resume\n");
+	struct gu_session_ops ops = card_ops(card);
+	report_card(card, gu_session_execute(&card->session, &ops));
 }
 
-/* Prepare all selected firmware families, then run the ready cards concurrently. */
-static void unlock_cards(async_func_t unlock)
+/* Assess before preparing firmware; only cold cards need a firmware bundle.
+ * Publish all shared assets before any concurrent mutating transaction. */
+static void unlock_cards(bool resuming)
 {
 	struct card *card;
-	int ret;
-
 	list_for_each_entry(card, &cards, node) {
-		ret = gpu_unlock_610_load_shared(&card->device, &shared);
-		card->prepared = !ret;
+		struct gu_session_ops ops = card_ops(card);
+		int ret;
+		card->resuming = resuming;
+		ret = gu_session_prepare(&card->session, &ops);
 		if (ret)
-			pci_err(card->device.pdev, "gpu_unlock: firmware load failed (%d)\n", ret);
+			report_card(card, ret);
 	}
-	/* Publish the completed cache only after every selected family is prepared. */
-	list_for_each_entry(card, &cards, node) {
-		if (card->prepared)
-			async_schedule_domain(unlock, card, &unlock_domain);
-	}
+	list_for_each_entry(card, &cards, node)
+		if (card->session.state == GU_SESSION_PREPARED)
+			async_schedule_domain(execute_one, card, &unlock_domain);
 	async_synchronize_full_domain(&unlock_domain);
 	gpu_unlock_610_release_shared(&shared);
 }
@@ -123,7 +147,7 @@ static void drop_card(struct card *card)
 static int gpu_unlock_pm_notify(struct notifier_block *nb, unsigned long event, void *unused)
 {
 	if (event == PM_POST_SUSPEND && resume)
-		unlock_cards(unlock_again);
+		unlock_cards(true);
 	return NOTIFY_DONE;
 }
 
@@ -198,9 +222,10 @@ static int __init gpu_unlock_init(void)
 	if (!all && enumerated)
 		report_unmatched();
 	/* nvidia loads once this returns: every card must be finished by then. */
-	unlock_cards(unlock_one);
+	unlock_cards(false);
 	list_for_each_entry_safe(card, next, &cards, node)
-		if (!card->unlocked)
+		if (card->session.state != GU_SESSION_READY &&
+		    card->session.state != GU_SESSION_POWER_OFF_REQUIRED)
 			drop_card(card);
 	if (!list_empty(&cards))
 		register_pm_notifier(&pm_nb);

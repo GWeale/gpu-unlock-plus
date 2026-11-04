@@ -16,9 +16,16 @@ fi
 $cc $flags $includes tests/engine/falcon_test.c kernel/gpu_unlock/falcon.c \
     kernel/gpu_unlock/prep_610.c -o "$work/falcon"
 "$work/falcon"
+$cc $flags $includes tests/engine/hs_preflight_test.c kernel/gpu_unlock/falcon.c \
+    kernel/gpu_unlock/prep_610.c -o "$work/hs-preflight"
+"$work/hs-preflight"
 $cc $flags $includes tests/engine/engine_test.c kernel/gpu_unlock/engine.c \
     kernel/gpu_unlock/recipes.c kernel/gpu_unlock/payload.c \
     kernel/gpu_unlock/falcon.c kernel/gpu_unlock/prep_610.c -o "$work/engine"
+$cc $flags $includes tests/engine/session_test.c kernel/gpu_unlock/session.c \
+    kernel/gpu_unlock/engine.c kernel/gpu_unlock/recipes.c kernel/gpu_unlock/payload.c \
+    kernel/gpu_unlock/falcon.c kernel/gpu_unlock/prep_610.c -o "$work/session"
+"$work/session"
 "$work/engine"
 "$work/engine" "$work/turing.bin"
 # nlzy/turing-unlock's two-write signature, also pinned in RakkiPoni #294.
@@ -31,4 +38,8 @@ if [ "${BASELINE:-0}" = 1 ]; then
     $cc $flags $includes -DGU_BASELINE tests/engine/falcon_test.c "$work/falcon-old.c" \
         kernel/gpu_unlock/prep_610.c -o "$work/baseline"
     "$work/baseline"
+    git show 981a9f434f3244a5c9880b99036d7b5b6a1c8116:kernel/gpu_unlock/falcon.c > "$work/falcon-prior.c"
+    $cc $flags $includes -DGU_OLD_HS tests/engine/hs_preflight_test.c "$work/falcon-prior.c" \
+        kernel/gpu_unlock/prep_610.c -o "$work/hs-baseline"
+    "$work/hs-baseline"
 fi

@@ -776,6 +776,19 @@ static int unlock_transaction_dma(struct unlock_transaction_work *work)
 	}
 }
 
+static int begin_fwsec(struct unlock_transaction_work *work)
+{
+	u16 command;
+	pci_set_master(work->pdev);
+	work->master = true;
+	if (diag_pci_word(work, false, PCI_COMMAND, &command) ||
+	    command == 0xffff || !(command & PCI_COMMAND_MASTER))
+		return GU_RESULT(-EIO);
+	/* Validation precedes this point; reset/load uncertainty still retains DMA. */
+	work->firmware_started = true;
+	return 0;
+}
+
 static int unlock_transaction_fwsec(struct unlock_transaction_work *work)
 {
 	static const struct gu_falcon_engine gsp = {
@@ -786,7 +799,6 @@ static int unlock_transaction_fwsec(struct unlock_transaction_work *work)
 	u8 *rom = NULL;
 	struct gpu_unlock_fwsec fw;
 	u32 fuse_raw = 0, version = 0, scratch = 0, wpr_lo = 0, wpr_hi = 0;
-	u16 command;
 	struct gu_falcon_evidence launch = { };
 	u64 frts = work->layout.frts_offset;
 	int ret;
@@ -836,16 +848,6 @@ static int unlock_transaction_fwsec(struct unlock_transaction_work *work)
 			goto out;
 		memcpy((u8 *)work->fwsec.cpu + fw.data_off + fw.pkc_off, rom + fw.sig_off + sig_at, 384);
 	}
-	pci_set_master(work->pdev);
-	work->master = true;
-	if (diag_pci_word(work, false, PCI_COMMAND, &command) ||
-	    command == 0xffff || !(command & PCI_COMMAND_MASTER)) {
-		ret = -EIO;
-		goto out;
-	}
-	/* Preserve conservative DMA retention from the moment FWSEC may access it,
-	 * including reset/load failures. Launch evidence is observed separately. */
-	work->firmware_started = true;
 	if (fw.version == 2) {
 		const struct gu_falcon_loader_image program = {
 			.loader = work->loader_fw ? (const u32 *)work->loader_fw->data : NULL,
@@ -856,7 +858,11 @@ static int unlock_transaction_fwsec(struct unlock_transaction_work *work)
 			.imem_sec_pa = fw.imem_sec_pa, .imem_sec_size = fw.imem_sec_size,
 			.dmem_size = fw.dmem_size,
 		};
-		ret = gu_falcon_loader(&io, &gsp, &program, &launch);
+		ret = gu_falcon_loader_validate(&program);
+		if (!ret)
+			ret = begin_fwsec(work);
+		if (!ret)
+			ret = gu_falcon_loader(&io, &gsp, &program, &launch);
 	} else {
 		const struct gu_falcon_hs_image program = {
 			.dma = work->fwsec.dma, .code_off = 0, .code_size = fw.imem_size,
@@ -867,7 +873,11 @@ static int unlock_transaction_fwsec(struct unlock_transaction_work *work)
 			/* The WPR2 check below proves FWSEC-FRTS ran. */
 			.stale_halt_ok = true,
 		};
-		ret = gu_falcon_hs(&io, &gsp, &program, &launch);
+		ret = gu_falcon_hs_validate(&program);
+		if (!ret)
+			ret = begin_fwsec(work);
+		if (!ret)
+			ret = gu_falcon_hs(&io, &gsp, &program, &launch);
 	}
 	if (ret)
 		goto out;
@@ -1414,27 +1424,46 @@ static int unlock_transaction_reset(struct unlock_transaction_work *work)
 
 static int engine_handoff(void *context) { return unlock_transaction_reset(context); }
 
-int gpu_unlock_610_unlock(const struct gu_device *device, const struct gpu_unlock_610_shared *shared,
+int gpu_unlock_610_assess(const struct gu_device *device, bool resume,
+			  enum gu_selector_mode mode)
+{
+	struct unlock_transaction_work work = {
+		.pdev = device->pdev, .card = device->recipe, .resume = resume,
+	};
+	int ret;
+	if (!work.card || !work.card->family)
+		return -ENODEV;
+	ret = gu_engine_plan(work.card, mode, &work.plan);
+	if (!ret)
+		ret = unlock_transaction_preflight(&work);
+	/* Observation borrows the PCI reference and never claims resources. */
+	if (work.bar)
+		pci_iounmap(work.pdev, work.bar);
+	return ret;
+}
+
+struct gu_attempt gpu_unlock_610_unlock(const struct gu_device *device, const struct gpu_unlock_610_shared *shared,
 			  bool resume, enum gu_selector_mode mode)
 {
 	struct pci_dev *pdev = device->pdev;
 	struct unlock_transaction_work *work;
 	const struct gpu_unlock_610_firmware *assets;
 	const struct gpu_unlock_610_booter *booter;
+	struct gu_attempt result;
 	int ret, cleanup;
 
 	if (!device->recipe || !device->recipe->family)
-		return -ENODEV;
+		return (struct gu_attempt){ .operation_error = -ENODEV };
 	work = kzalloc(sizeof(*work), GFP_KERNEL);
 	if (!work)
-		return -ENOMEM;
+		return (struct gu_attempt){ .operation_error = -ENOMEM };
 	work->pdev = pci_dev_get(pdev);
 	work->card = device->recipe;
 	ret = gu_engine_plan(work->card, mode, &work->plan);
 	if (ret) {
 		pci_dev_put(work->pdev);
 		kfree(work);
-		return ret;
+		return (struct gu_attempt){ .operation_error = ret };
 	}
 	assets = gpu_unlock_610_bundle_find(shared, work->card->family->fw);
 	booter = gpu_unlock_610_booter_find(shared, work->card->family->booter);
@@ -1445,7 +1474,7 @@ int gpu_unlock_610_unlock(const struct gu_device *device, const struct gpu_unloc
 		ret = assets && assets->prepared && assets->error ? assets->error : -EINVAL;
 		pci_dev_put(work->pdev);
 		kfree(work);
-		return ret;
+		return (struct gu_attempt){ .operation_error = ret };
 	}
 	work->bundle = assets;
 	work->booter = booter;
@@ -1501,20 +1530,23 @@ int gpu_unlock_610_unlock(const struct gu_device *device, const struct gpu_unloc
 		restore_stock_signature(work);
 	work->error_reported = false;
 	cleanup = unlock_transaction_unwind(work);
-	if (!ret)
-		ret = cleanup;
+	result = (struct gu_attempt){
+		.operation_error = ret, .cleanup_error = cleanup, .retained = work->retained,
+	};
+	ret = gu_attempt_errno(&result);
 	dev_info(&pdev->dev,
 		 "gpu_unlock: stage=handoff ret=%d state=%u retained=%u pages=%u/%u cleanup=%d\n",
 		 ret, work->state, work->retained, work->pages_allocated,
 		 work->page_count, cleanup);
-	if (work->retained) {
-		/* Firmware may still DMA into these buffers: keep them, the device
-		 * reference and this module until the next power off. */
-		dev_err(&pdev->dev, "firmware did not stop; keeping its DMA buffers until power off\n");
+	if (work->retained || cleanup) {
+		/* A new module instance must not forget unresolved ownership. */
 		__module_get(THIS_MODULE);
-		return ret;
+		dev_err(&pdev->dev, "gpu_unlock: recovery=power_off_required operation=%d cleanup=%d retained=%u\n",
+			 result.operation_error, result.cleanup_error, result.retained);
 	}
+	if (work->retained)
+		return result;
 	pci_dev_put(work->pdev);
 	kfree(work);
-	return ret;
+	return result;
 }
