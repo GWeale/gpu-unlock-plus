@@ -1,257 +1,162 @@
-![gpu-unlock: full-speed tensor cores for GeForce RTX](assets/banner.svg)
+# GPU Unlock Plus
 
-### Your GeForce runs AI at half speed. This fixes it.
+A working fork of [Zagitta/gpu-unlock](https://github.com/Zagitta/gpu-unlock) with
+read-only preflight, evidence-based status, explicit setup/recovery plans, and
+correctness-checked benchmark capture. The original kernel/firmware engine and
+native packaging remain in place. This fork does not claim a faster unlock engine.
 
-![Version](https://img.shields.io/badge/version-2.0.0-76b900)![RTX 20 | 30 | 40](https://img.shields.io/badge/GeForce-RTX%2020%20%7C%2030%20%7C%2040-76b900?logo=nvidia&logoColor=white)![Linux](https://img.shields.io/badge/platform-Linux-informational?logo=linux&logoColor=white)![License GPL-2.0](https://img.shields.io/badge/license-GPL--2.0-blue)![Stars](https://img.shields.io/github/stars/Zagitta/gpu-unlock?style=flat&color=yellow)
+Fork CLI version **0.1.0**. Inherited engine version **2.0.0**.
+Upstream base **7eb51bccae0a0b7e599e084d971170e9a1e82d0c**.
+The original project, contributors, licensing notices, and history retain their
+credit. [UPSTREAM.md](UPSTREAM.md) is the unchanged upstream README at that base;
+its performance claims are upstream claims, not new measurements from this fork.
 
-**Up to 2× FP16 / BF16 / TF32 tensor throughput** · **+25–55% LLM prefill** · **+25–50% fine-tuning** · **+30–55% image generation**
+## Check before installing
 
-[Supported GPUs](#supported-gpus) · [Benchmarks](#what-you-get) · [Install](#how-to-install) · [FAQ](#faq) · [Support](#support-me)
-
----
-
-NVIDIA ships GeForce cards with their tensor cores capped to **half speed** for
-FP16, BF16 and TF32 math with FP32 accumulation, which is what nearly all AI
-training and unquantized inference uses. The same silicon sold as an RTX A-series
-or professional card runs at full rate. `gpu_unlock` removes that cap at boot,
-before the stock NVIDIA driver loads. No patched driver, no VBIOS flash, nothing
-to redo when NVIDIA releases a new driver.
-
----
-
-## Supported GPUs
-
-| Generation                | Cards                                                                                                                  | Status                    |
-| ------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------- |
-| **Ampere** (RTX 30)       | RTX 3050, 3060, 3060 Ti, 3070, 3070 Ti, 3080, 3080 Ti, 3090, 3090 Ti, plus RTX 3070/3080 Laptop GPUs                   | Stable, 100+ user reports |
-| **Ada Lovelace** (RTX 40) | RTX 4060, 4060 Ti, 4070, 4070 SUPER, 4070 Ti, 4070 Ti SUPER, 4080, 4080 SUPER, 4090, 4090 D, RTX 4050/4060 Laptop GPUs | Experimental              |
-| **Turing** (RTX 20)       | RTX 2060, 2060 SUPER, 2070, 2070 SUPER, 2080, 2080 SUPER, 2080 Ti, Titan RTX                                           | Experimental              |
-| Blackwell (RTX 50)        |                                                                                                                        | Not supported             |
-
-Laptops only stay unlocked if the dedicated GPU is never fully powered off.  
-Many laptops power it down when idle, which silently resets the unlock. Turning  
-off runtime power management with `options nvidia NVreg_DynamicPowerManagement=0x00`
-in `/etc/modprobe.d/` helps on some models, but expect mixed results.
-
-The exact PCI device IDs are in [`kernel/gpu_unlock/recipes.c`](kernel/gpu_unlock/recipes.c).
-Linux only. For Windows see the [FAQ](#faq).
-
----
-
-## What you get
-
-The tensor core rate doubles. How much of that you see depends on how much of
-your workload is FP16/BF16/TF32 matrix math, and on whether the card has the
-power headroom to run it.
-
-Dense matrix multiply (FP32 accumulation, stock power limits):
-
-| Card | BF16 before | BF16 after | Gain |
-| --- | --- | --- | --- |
-| RTX 3060 12 GB | 27 TFLOPS | 51 TFLOPS | +87% |
-| RTX 3060 Ti | 37 TFLOPS | 68 TFLOPS | +82% |
-| RTX 3070 | 40 TFLOPS | 72 TFLOPS | +81% |
-| RTX 3080 10 GB | 65 TFLOPS | 113 TFLOPS | +73% |
-| RTX 3090 | 75 TFLOPS | 125 TFLOPS | +65% |
-| RTX 3090 Ti (450 W) | 88 TFLOPS | 157 TFLOPS | +80% |
-| RTX 4070 Ti | 81 TFLOPS | 150 TFLOPS | +84% |
-| RTX 4080 | 104 TFLOPS | 193 TFLOPS | +87% |
-| RTX 4090 | 165 TFLOPS | 329 TFLOPS | +100% (peak MMA rate) |
-
-The RTX 4090 runs out of power before it runs out of tensor cores, so large
-GEMMs at stock power limits gain much less than the peak rate suggests.
-
-Real workloads:
-
-| Workload | Typical speedup |
-| --- | --- |
-| LLM prefill / prompt processing, FP16/BF16 or AWQ/GPTQ (vLLM, PyTorch, Transformers) | +25–55% |
-| Time to first token | 25–30% lower |
-| LoRA and full fine-tuning in BF16 | +25–50% |
-| Image generation, FP16/BF16 (SDXL, SD 1.5, Krea, DiT models in ComfyUI) | +30–55% |
-| Video generation, BF16 compute (Wan 2.2) | +15–20% |
-| FlashAttention / SDPA kernels | +50–60% |
-| llama.cpp / Ollama with quantized GGUF | 0–15%, mostly at long context |
-| LLM decode / token generation (memory bound) | No change |
-| INT8, FP8 and INT4 models | No change |
-| Gaming and FP32 CUDA | No change |
-
-Outputs are bit-identical before and after; only the speed changes. These
-numbers come from the [compatibility reports](https://github.com/Zagitta/gpu-unlock/issues)
-users have filed, where you can find full benchmark details and post your own.
-
----
-
-## How to install
-
-First run:
+Use Python 3.10 or later on Linux. Basic commands need only the standard library,
+no sudo, no dependency installation, and no GPU runtime.
 
 ```sh
-git clone https://github.com/Zagitta/gpu-unlock
-cd gpu-unlock
+./gpu-unlock-plus doctor
+./gpu-unlock-plus status
+./gpu-unlock-plus support
+./gpu-unlock-plus doctor --json
+python3 -m gpu_unlock_plus --help
+```
+
+`doctor` reads PCI sysfs instead of guessing support from a marketing name.
+It checks exact device IDs against `kernel/gpu_unlock/recipes.c`, the current
+kernel's headers, tool availability, installed firmware-file presence, bound
+drivers, runtime power, Secure Boot, and bootloader candidates. Ada and Turing
+recipes are labeled experimental. Ampere's `upstream-established` label describes
+upstream maturity, not a new fork hardware certification. Missing or inaccessible
+observations remain unknown. File presence does not validate firmware contents.
+
+`status` matches per-card BDFs and the current boot ID in kernel journal records.
+Configured targets, a loaded module, and fast benchmarks cannot establish success.
+Its `unlocked` state means the engine reported success in this boot; current
+hardware selectors always remain `unknown` because this CLI never reads registers.
+Later observed failures, suspend/hibernation entry, or runtime-suspended power can
+invalidate an earlier success report. Unobserved resets and power loss remain a
+limitation. Journal access can be restricted without sudo.
+
+These reports contain local PCI identity. Keep exports private and in ignored
+`.local/`, or outside the repository. Raw journal exports are never included in
+reports. A supplied `status --journal FILE` export is explicitly unauthenticated.
+
+## Review setup and recovery
+
+Select the exact BDF reported by `doctor`. Repeat `--target` for multiple cards.
+The planner refuses `all`, malformed addresses, absent cards, and unsupported IDs.
+
+```sh
+./gpu-unlock-plus plan --target 0000:01:00.0
+./gpu-unlock-plus plan --target 0000:01:00.0 --loader grub
+./gpu-unlock-plus plan --target 0000:01:00.0 --loader systemd-boot
+./gpu-unlock-plus plan --target 0000:01:00.0 --loader uki --json
+```
+
+Every plan shows the exact kernel argument, a conceptual diff, packaging route,
+boot evidence, limitations, and removal instructions. It never executes commands
+or edits files. Files on disk identify candidate boot mechanisms only; confirm
+the active entry and image generator yourself. There is no universal UKI update
+command. Secure Boot may require module signing and an enrolled key; signed UKIs
+can ignore external command-line edits. Preserve a known-good boot image.
+
+The retained upstream installer remains the route to the actual engine:
+
+```sh
+# Manual action only after reviewing doctor, the plan, and firmware/NOTICE.md.
+# Downloads inputs, installs build dependencies/packages, and rebuilds boot images.
 make install
 ```
 
-Then append `gpu_unlock.targets=all` to your kernel command line, keeping
-existing options:
+Use `make install-deb`, `make install-arch`, or `make install-rpm` when selecting a
+specific supported distribution. These commands are inherited upstream behavior;
+the Python CLI is run from this checkout and is not installed by the engine packages.
+Review [UPSTREAM.md](UPSTREAM.md#local-build) and
+[firmware/NOTICE.md](firmware/NOTICE.md) for the pinned input and packaging process.
+The generated firmware stays under NVIDIA's terms; this fork supplies no new
+custom firmware.
 
-- **GRUB (Debian/Ubuntu/Mint):** add it inside `GRUB_CMDLINE_LINUX_DEFAULT`
-in `/etc/default/grub`, then run `sudo update-grub`.
-- **GRUB (Arch/CachyOS):** same edit, then run
-`sudo grub-mkconfig -o /boot/grub/grub.cfg`.
-- **Fedora/RHEL:** run
-`sudo grubby --update-kernel=ALL --args="gpu_unlock.targets=all"`.
-- **systemd-boot:** append it to the `options` line in your boot entry
-(`bootctl status` shows its location).
-- **UKI / generated entries:** add it to `/etc/kernel/cmdline` and regenerate
-your boot images/entries (e.g. `sudo mkinitcpio -P` for mkinitcpio UKIs).
+The module needs the plan's explicit `gpu_unlock.targets=BDF[,BDF]` argument in
+the confirmed boot source. The existing initramfs hooks run it before NVIDIA
+binds. Do not try to unlock an active card by unloading drivers or loading the
+module manually after boot. No install, module load, boot edit, or reboot was
+performed to validate this fork.
 
-# FAQ
+To opt out for one boot, remove every `gpu_unlock.targets=` argument in the
+bootloader editor. For a UKI with an embedded signed command line, select a known
+good image without that argument. For permanent removal, remove the argument at
+its source, regenerate the affected entries/images, and optionally remove the
+`gpu-unlock-dkms` and `gpu-unlock-firmware` packages with your distribution's package
+manager. The plan prints exact package-removal commands and recovery limits.
+If the engine reports retained firmware DMA buffers, power off before retrying;
+do not force-remove the module. Resume behavior is inherited; hibernation is not
+covered by the engine's resume recovery.
 
-- Q: Do you have a website/coin/installer?  
-A: No this is the one and only OG source for gpu-unlock. Crypto, websites, installers and what else is not associated with this project or the developer in any way shape or form. 
-- Q: Does this depend on a specific driver version? I see `610.43.03` is pinned.  
-A: No the driver is only fetched to extract firmware this unlock depends on    
-- Q: What about Windows?  
-A: I don't run windows and don't plan to maintain it but [https://github.com/impacifist/Windows-GPU-UNLOCK](https://github.com/impacifist/Windows-GPU-UNLOCK) has built a port, YMMV.   
-There are windows installer's floating around but I would recommend being ++**very**++ careful with those.
-- Q: What about Blackwell (RTX 50)?  
-A: Not supported and unlikely to happen.    
-- Q: Why did Nvidia handicap my GPU?  
-A: Market segmentation, they want businesses to purchase the professional cards without these limitations at significantly higher prices.
-- Q: Does this hurt my GPU?  
-A: It's very unlikely, this only unlocks a small handicap Nvidia has put in place to differentiate datacenter and professional cards from consumer versions. It may heat up your GPU slightly because it now does more compute but the standard throttling and power management remains completely intact and should downclock.    
-- Q: How can I assist?  
-A: Please consider [donating](#support-me) so I can purchase more GPUs <3
+## Capture and compare controlled benchmarks
 
-## Local build
-
-Every build downloads the NVIDIA/CachyOS inputs over HTTPS and generates
-firmware only in the build directory and the binary package. All three formats install through the same `make install-*`
-targets. Packages are built from the working tree, uncommitted changes included.
-
-Build, install build dependencies, and install the packages in one step
-(asks for your sudo password):
+Capture needs an already installed CUDA-enabled PyTorch environment, physical
+GPU UUID support, `torch.mm(..., out_dtype=torch.float32, out=...)`, the precision
+flags described in [the benchmark contract](docs/BENCHMARKS.md), and readable
+`nvidia-smi` identity/power evidence. Unsupported APIs fail closed. No dependency
+is installed automatically. CPU-only hosts can use help, fixtures, and compare.
 
 ```sh
-make install        # detect the distribution and select an installer
-make install-arch   # makepkg -sif
-make install-deb    # apt-get build-dep, dpkg-buildpackage, apt-get install
-make install-rpm    # dnf builddep, rpmbuild, dnf install
+# On a GPU host, before and after your separately authorized setup experiment:
+./gpu-unlock-plus bench --target 0000:01:00.0 --output .local/before.json
+./gpu-unlock-plus bench --target 0000:01:00.0 --output .local/after.json
+./gpu-unlock-plus compare .local/before.json .local/after.json
+
+# CPU-only demonstration, visibly marked SYNTHETIC FIXTURE ONLY:
+./gpu-unlock-plus compare tests/fixtures/baseline.json tests/fixtures/baseline.json
 ```
 
-`make install` uses `/etc/os-release` (`ID`, then `ID_LIKE`) to detect Arch,
-Debian/Ubuntu, or Fedora/RHEL/CentOS families. The RPM installer requires DNF.
-For other distributions, select a compatible explicit target above.
+Capture uses synchronized CUDA events, bounded shapes/work/memory estimates,
+warmups and repeats, quantized-input CPU FP64 reference samples, and finite-output
+checks on every timed result. FP16/BF16 input and FP32 output are recorded with
+backend precision controls. This is an observed/requested backend contract, not
+proof from disassembling GPU instructions. It does not time an LLM or establish
+an unlock. FP32 and TF32 benchmark modes are deliberately absent from this release.
 
-`make arch`, `make deb` and `make rpm` only build. Debian and RPM packages go
-to `build/deb` and `build/rpm`. The NVIDIA inputs are cached in
-`~/.cache/gpu-unlock/inputs` (`make inputs`; override with `INPUTS=`).
-`dpkg-buildpackage` itself never uses the network, so a clean-chroot build (sbuild or
-pbuilder) needs `GPU_UNLOCK_INPUTS` pointing at that cache.
-The `make dist` archive, the Debian source package and the `.nosrc.rpm`
-contain no NVIDIA archives or generated firmware.
+Results contain GPU UUID and PCI identity. Capture accepts new `.json` files only
+under ignored `.local/`, writes them atomically with mode 0600, and never overwrites
+a baseline. Compare rejects mismatched GPU identity, shape, seed, math, environment,
+or observed power/clock/temperature conditions. An overlap in repeat ranges is
+inconclusive. A matched timing ratio is still not causal proof or a workload claim.
+No real benchmark results or performance claims are shipped in this repository.
 
-## How it works
-
-This Linux kernel module combines the cmpunlocker's V67/PLM technique with the
-pre-driver timing of the UEFI approach. At boot it runs the unlock, writes the
-speed selectors (SS0 `0x88888888`, which selects the full BF16 rate, and the
-4-bit SS1 `0x8` IMLA4) and performs an FLR before the unmodified NVIDIA driver
-binds the card. It is neither a UEFI application nor a patched NVIDIA driver.
-
-## Boot flow and opt-in
-
-The packages put `gpu_unlock` and its firmware in the initramfs and load it
-there, before `nvidia` can bind a card:
-
-- **mkinitcpio:** `/etc/mkinitcpio.conf.d/zz-gpu-unlock.conf` inserts
-`gpu_unlock` right before `nvidia` in `MODULES`, so a display card is blank
-for as short a time as possible. Without `nvidia` in the image, it goes
-last and still runs before an `nvidia` loaded from the root filesystem.
-Images are rebuilt on install. mkinitcpio ignores drop-ins for an image
-built with `-c <config>` or a preset `_config`; put `gpu_unlock` right
-before `nvidia` in that config's `MODULES` yourself.
-- **initramfs-tools:** `/usr/share/initramfs-tools/modules.d/gpu-unlock.conf`.
-- **dracut:** `/usr/lib/dracut/dracut.conf.d/gpu-unlock.conf`.
-
-With initramfs-tools and dracut, the module is built for every installed
-kernel that has headers, and those kernels' images are rebuilt on install
-and again on removal. Kernels installed later get the module and a new
-image from the kernel's own install hooks.
-
-There is no `softdep nvidia pre:` rule: kmod honours only the first
-`softdep nvidia` line it reads, so other packages' rules (`nvidia-utils`,
-`gddr6_hwmon`) would silently override it, or it would override theirs.
-
-The module does nothing unless the kernel command line opts in:
-
-```
-gpu_unlock.targets=all                          # every supported unbound card
-gpu_unlock.targets=0000:21:00.0                 # only these cards
-gpu_unlock.targets=0000:21:00.0,0000:22:00.0    # comma-separated
-```
-
-Addresses are full PCI names as `lspci -D` prints them (hex digits in either
-case), independent of GPU numbering and display role. An entry that is not
-a supported card (see [Supported GPUs](#supported-gpus)), including `all` mixed with addresses, is logged and ignored.
-The cards are unlocked concurrently, about a second in all however many
-there are, and each on its own: a card that is already bound or powered
-down is skipped. Bus mastering that the board firmware left on (Supermicro
-X11 does this whatever its option ROM and bus master settings) is cleared
-first; a card some driver already initialised is still refused. Then
-`nvidia` loads and binds every card as usual.
-
-The display card works too. Its firmware framebuffer (the boot console and
-Plymouth) keeps running while the unlock's firmware steps run, and is
-removed just before the card's reset, as `nvidia-drm` would do a moment
-later anyway. Its screen is blank from that reset until `nvidia-drm` takes
-over.
-
-Loading the module by hand after boot does nothing to a card that `nvidia`
-has bound.
-
-Suspend to RAM powers the cards off, which resets the speed selectors. After
-resume the module unlocks every card it unlocked at boot again, before
-`nvidia` resumes it: its suspend notifier runs just ahead of the one `nvidia`
-resumes its cards from (`NVreg_UseKernelSuspendNotifiers=1`, the default in
-current drivers; `nvidia-resume.service` runs later still). This adds about a
-second to resume. A card that kept power, as in suspend to idle, is still
-unlocked and is only read. A card that `nvidia` has already resumed, or that is
-bound to another driver, is left as it is, and the log says why. Add
-`gpu_unlock.resume=0` to the kernel command line, or write `0` to
-`/sys/module/gpu_unlock/parameters/resume`, to turn this off. Hibernation is
-not covered.
-
-Check the result with:
+## Verify the fork
 
 ```sh
-journalctl -k -b | grep gpu_unlock
-lspci -nnk -s 0000:[ID]:00.0
+make check
+# Build only, using already installed headers. Never installs or loads a module.
+make -C kernel/gpu_unlock KCFLAGS=-Werror -j2
 ```
 
-To stop unlocking, remove `gpu_unlock.targets=` from the kernel command line;
-for a one-off boot, delete it in the bootloader's edit screen. Removing the
-packages also removes the module and the initramfs drop-ins.
+Tests exercise the CLI, synthetic multi-GPU/journal failures, parser boundaries,
+comparison refusals, precision/correctness gates, private output preservation,
+and upstream package staging under a temporary `DESTDIR`. The existing
+`test-module` and `test-packages` container suites are retained for a separately
+provisioned build environment. They can download dependencies and run installers
+inside containers; `make check` does neither.
 
-If the firmware on a card never stops, the module logs it and keeps the DMA
-buffers that firmware may still use until the next power off. Power off
-before trying again.
+[Validation and known limits](docs/VALIDATION.md) records the actual Hatter checks.
+Inherited GitHub Actions are manual-only in this private fork. The Unraid release
+job is also restricted to its original upstream repository to prevent accidental
+publication. No public release or PR has been created.
 
-The kernel module and local packaging are GPL-2.0-only. The generated buffer
-derives from the pinned CMP reference; NVIDIA firmware remains under its own
-terms. See `firmware/NOTICE.md` and `licenses/` for attribution and notices.
+## License and credit
 
-# Support me
+The engine, packaging, and added CLI/tests are GPL-2.0-only. See
+[licenses/GPL-2.0.txt](licenses/GPL-2.0.txt),
+[licenses/CMP40HX-MIT.txt](licenses/CMP40HX-MIT.txt),
+[licenses/NVIDIA-MIT.txt](licenses/NVIDIA-MIT.txt), and
+[firmware/NOTICE.md](firmware/NOTICE.md). Zagitta and the upstream contributors
+created the unlock engine. GWeale's fork adds the surrounding workflow tooling.
 
-Help me buy more GPUs <3
-
-[Github Sponsor](https://github.com/sponsors/Zagitta)
-
-[https://buymeacoffee.com/zagitta](https://buymeacoffee.com/zagitta) 
-
-ETH: 0xf4eee937937f92038D70B16AbD7736D8a53a1c5c
-
-BTC: bc1qwpkwp70fn76z3s4kg2l9y3j4kst95twcznuugf
-
-SOL: 8Rih6HY7V4LcdjYHz4iSffT4fTniqw5CACaBigSVxNYu
+Successful upstream hardware reports belong in
+[the success discussion](https://github.com/Zagitta/gpu-unlock/discussions/238).
+Search existing issues before reporting an actual failure. This fork sends no
+reports automatically.

@@ -43,7 +43,7 @@ def plan(system, requested, loader=None):
             "limitations": report["limitations"],
             "boot": boot, "selected_loader": loader or "unconfirmed", "kernel_argument": argument,
             "review_steps": ["Review doctor, exact PCI IDs and experimental status for each selected card.",
-                             "Review firmware/NOTICE.md and docs/UPSTREAM.md before using upstream packaging.",
+                             "Review firmware/NOTICE.md and UPSTREAM.md before using upstream packaging.",
                              "The following installer may download inputs, install build dependencies, use sudo and rebuild boot images: " + installer,
                              "No installer has been run by this tool. Confirm headers, signing, initramfs ordering and recovery access first."] +
                             boot_steps.get(loader, ["Confirm the active boot mechanism. Rerun plan with --loader grub, systemd-boot or uki for its edit instructions."]),
