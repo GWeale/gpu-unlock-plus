@@ -58,7 +58,7 @@ jobs:
             sh packaging/unraid/build.sh "$1" dist
             chown -R "$2" dist' sh "$src" "$(id -u):$(id -g)"
           echo "${{ matrix.unraid.version }} $(cat VERSION)" > 'dist/${{ matrix.unraid.version }}.built'
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: unraid-${{ matrix.unraid.version }}
           path: dist
