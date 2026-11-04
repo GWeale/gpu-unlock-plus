@@ -2,7 +2,7 @@
 
 ## Report a vulnerability privately
 
-Use [GitHub's private vulnerability report form](https://github.com/GWeale/tensor-reclaim/security/advisories/new).
+Use [GitHub's private vulnerability report form](https://github.com/GWeale/latchloom/security/advisories/new).
 Include the affected commit, a minimal reproduction, the expected impact, and
 any proposed fix. Do not open a public issue containing an exploit or a secret.
 Do not attach full journals, firmware dumps, signing keys, GPU UUIDs, or unrelated

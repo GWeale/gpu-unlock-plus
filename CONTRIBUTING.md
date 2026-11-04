@@ -1,4 +1,4 @@
-# Contributing to Tensor Reclaim
+# Contributing to Latchloom
 
 Changes should improve the engine, its evidence, or the tools that help people
 use it. Keep each pull request focused and preserve upstream attribution.
@@ -52,7 +52,7 @@ manual procedure.
 
 ## Report a problem
 
-Search [existing fork issues](https://github.com/GWeale/tensor-reclaim/issues)
+Search [existing fork issues](https://github.com/GWeale/latchloom/issues)
 first. Include the fork commit and reproduction steps. Use the unlock-failure
 form when a card fails to unlock, gains no speed, or loses the unlock later.
 For CLI problems, include the command and a small redacted input when relevant.
