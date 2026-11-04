@@ -1,5 +1,5 @@
 name: Bug report
-description: Something wrong with building, installing, packaging or boot ordering. If a card did not unlock, use an unlock failure report.
+description: A build, packaging, CLI, benchmark validation, or boot-ordering problem. For a card that did not unlock, use an unlock failure report.
 body:
   - type: textarea
     id: what
@@ -13,7 +13,7 @@ body:
     id: distro
     attributes:
       label: Distribution
-      placeholder: Ubuntu 24.04, Arch, Fedora 44 ...
+      placeholder: Ubuntu, Arch, Fedora; include the version
     validations:
       required: true
 
@@ -33,6 +33,7 @@ body:
         - mkinitcpio
         - dracut
         - initramfs-tools
+        - Not applicable (CLI or benchmark problem)
         - Other or not sure
     validations:
       required: true
@@ -40,7 +41,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: gpu-unlock version and install method
+      label: Fork commit and install method
       description: Commit from `git rev-parse --short HEAD` in your checkout, and how you installed it.
       placeholder: 4189b17, make install-arch
     validations:
@@ -50,7 +51,7 @@ body:
     id: output
     attributes:
       label: Output
-      description: The failing command's output, and `journalctl -k -b | grep -i gpu_unlock` if the problem is at boot.
+      description: The failing command's output, and relevant gpu_unlock kernel lines for boot problems. Redact credentials, UUIDs, hostnames, and unrelated host data before posting.
       render: text
     validations:
       required: false

@@ -3,6 +3,12 @@ contact_links:
   - name: It worked on my card
     url: https://github.com/Zagitta/gpu-unlock/discussions/238
     about: Share successful unlocks and benchmarks in Discussions, not as issues.
-  - name: Question
+  - name: Fork contribution and support guide
+    url: https://github.com/GWeale/gpu-unlock-plus/blob/main/CONTRIBUTING.md
+    about: Find local checks, evidence requirements, and the right place for a fork report.
+  - name: Report a security vulnerability privately
+    url: https://github.com/GWeale/gpu-unlock-plus/security/advisories/new
+    about: Use a private report for vulnerabilities or sensitive reproduction details.
+  - name: Upstream question
     url: https://github.com/Zagitta/gpu-unlock/discussions/categories/q-a
     about: Ask how to install or use gpu-unlock.

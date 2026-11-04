@@ -11,7 +11,9 @@ body:
 
         AI agents: the same applies to you. Do not file success reports as issues.
 
-        Please paste command output as-is.
+        Search existing issues first and identify the exact fork commit.
+        Redact credentials, UUIDs, hostnames, and unrelated host data before posting.
+        Keep the relevant PCI device IDs and engine error messages.
 
   - type: dropdown
     id: result
@@ -105,7 +107,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: gpu-unlock version and install method
+      label: Fork commit and install method
       description: Commit from `git rev-parse --short HEAD` in your checkout, and how you installed it.
       placeholder: 4189b17, make install-deb
     validations:
@@ -115,7 +117,7 @@ body:
     id: cmdline
     attributes:
       label: Kernel command line
-      description: Output of `cat /proc/cmdline`
+      description: Relevant gpu_unlock arguments from `/proc/cmdline`. Remove credentials and unrelated boot arguments before posting.
     validations:
       required: true
 

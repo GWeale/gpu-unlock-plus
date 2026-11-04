@@ -1,4 +1,13 @@
+![GPU Unlock Plus: Linux RTX 20 and 30 engine work, source evidence, and repeatable checks](assets/plus-banner.svg)
+
 # GPU Unlock Plus
+
+[![Checks](https://github.com/GWeale/gpu-unlock-plus/actions/workflows/checks.yml/badge.svg?branch=main)](https://github.com/GWeale/gpu-unlock-plus/actions/workflows/checks.yml)
+[![License: GPL-2.0-only](https://img.shields.io/badge/license-GPL--2.0--only-blue)](LICENSE)
+
+[Quick start](#quick-start) · [Engine changes](#engine-changes-and-evidence) ·
+[Validation](docs/VALIDATION.md) · [Changelog](CHANGELOG.md) ·
+[Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
 
 An RTX 20/30 engine fork of [Zagitta/gpu-unlock](https://github.com/Zagitta/gpu-unlock)
 with corrected Turing bring-up and an Ampere path that writes the speed selectors
@@ -8,13 +17,29 @@ capture support those engine changes.
 
 The goal is reliable access to the hardware's unlocked tensor rate. This fork
 claims no rate beyond that unlock and no measured speed advantage over upstream.
-Our improved-module RTX 3080 trial is **pending**. Turing remains **experimental**.
+The improved-module RTX 3080 trial is **pending**. Turing remains **experimental**.
 
 Fork CLI version **0.1.0**. Kernel/package version remains **2.0.0**; identify a
 fork build by its Git revision and module hash. Upstream base:
 `7eb51bccae0a0b7e599e084d971170e9a1e82d0c`.
 [UPSTREAM.md](UPSTREAM.md) preserves the original README at that base, including
 its original claims and credits.
+
+## Quick start
+
+Inspect a Linux host with Python 3.10 or later. These commands use the standard
+library and do not install anything, change boot settings, or access GPU registers.
+
+```sh
+git clone https://github.com/GWeale/gpu-unlock-plus.git
+cd gpu-unlock-plus
+./gpu-unlock-plus doctor
+./gpu-unlock-plus status
+```
+
+Start with the exact PCI IDs and observations in the report. Before installing,
+read [setup and recovery](#review-setup-and-recovery) and the
+[validation limits](docs/VALIDATION.md). For development, run `make check`.
 
 ## Engine changes and evidence
 
@@ -56,12 +81,10 @@ evidence, and recovery steps. It is a prepared procedure, not an applied change.
 
 ## Check before installing
 
-Use Python 3.10 or later on Linux. Basic commands need only the standard library,
-no sudo, no dependency installation, and no GPU runtime.
+Basic commands need no sudo, dependency installation, or GPU runtime. Explore
+the support table and machine-readable observations with:
 
 ```sh
-./gpu-unlock-plus doctor
-./gpu-unlock-plus status
 ./gpu-unlock-plus support
 ./gpu-unlock-plus doctor --json
 python3 -m gpu_unlock_plus --help
@@ -187,10 +210,22 @@ and upstream package staging under a temporary `DESTDIR`. The existing
 provisioned build environment. They can download dependencies and run installers
 inside containers; `make check` does neither.
 
-[Validation and known limits](docs/VALIDATION.md) records the actual Hatter checks.
-Inherited GitHub Actions are manual-only in this private fork. The Unraid release
-job is also restricted to its original upstream repository to prevent accidental
-publication. No public release or PR has been created.
+[Validation and known limits](docs/VALIDATION.md) records the observed checks.
+The [Checks workflow](https://github.com/GWeale/gpu-unlock-plus/actions/workflows/checks.yml)
+runs CPU-only tests on pushes to `main` and pull requests, with Python 3.10 and
+3.13 and a C sanitizer pass. It does not install the module or test a physical GPU.
+The inherited distribution matrix remains manual-only. The Unraid publisher is
+restricted to the original upstream repository. No packaged fork release is
+published automatically.
+
+## Contribute and get help
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) for local checks, source attribution,
+hardware evidence requirements, and issue reporting. Track fork problems in
+[Issues](https://github.com/GWeale/gpu-unlock-plus/issues), review changes in
+[the changelog](CHANGELOG.md), and report vulnerabilities through
+[the security policy](SECURITY.md). Public reports should contain only the
+relevant, redacted evidence.
 
 ## License and credit
 
