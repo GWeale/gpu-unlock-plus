@@ -174,3 +174,32 @@ documentation, private commits, private push and scoped backup are part of this
 delivery. No module was installed or loaded, no boot source was changed, and no host was rebooted.
 No public PR, upstream comment, release, or merge was created. The RTX 3080
 pilot is prepared separately and has not been applied.
+
+## Per-card session feature after publication
+
+The session feature is separate from the private Debian package receipt above.
+It adds persistent admission control for retained ownership and cleanup failure,
+firmware-independent read-only assessment, and complete transport validation
+before reset/BME commitment. The design and recovery contract are in
+[ENGINE-RECOVERY.md](ENGINE-RECOVERY.md). The earlier package artifacts still
+contain only source `981a9f4`; they do not validate this feature.
+
+Observed software checks include production session/selector C integration,
+AddressSanitizer and UndefinedBehaviorSanitizer, all 32 existing Python checks,
+and the module build with `KCFLAGS=-Werror` against `7.0.0-42-generic`.
+The historical HS OS-offset case returns `-EINVAL` after six setup/reset writes;
+the amended case returns `-EINVAL` with no writes. Original Turing baseline
+reproduction and the pinned payload digest remain passing.
+
+The session checks verify that a retained failure or a cleanup-only failure
+blocks all subsequent assessment, firmware preparation and execution callbacks;
+other cards remain independent. A healthy retained unlock needs no firmware
+preparation. Every new round reassesses a prior success. Operation and cleanup
+errors remain separate, and cleanup failure cannot become an already-unlocked
+success.
+
+Physical module loading, actual suspend/resume, PCI/resource restoration,
+module-reference enforcement, and performance remain untested for this feature.
+Independent review and exact PR/check receipts are delivered with the change,
+not inferred from these synthetic checks. Public branding, contribution files,
+CI configuration and private-backup settings are preserved from their owners.
