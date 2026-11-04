@@ -1,15 +1,58 @@
 # GPU Unlock Plus
 
-A working fork of [Zagitta/gpu-unlock](https://github.com/Zagitta/gpu-unlock) with
-read-only preflight, evidence-based status, explicit setup/recovery plans, and
-correctness-checked benchmark capture. The original kernel/firmware engine and
-native packaging remain in place. This fork does not claim a faster unlock engine.
+An RTX 20/30 engine fork of [Zagitta/gpu-unlock](https://github.com/Zagitta/gpu-unlock)
+with corrected Turing bring-up and an Ampere path that writes the speed selectors
+from signed firmware while preserving the entry protection masks. It also restores
+reported laptop recipes. Read-only preflight, recovery planning, and benchmark
+capture support those engine changes.
 
-Fork CLI version **0.1.0**. Inherited engine version **2.0.0**.
-Upstream base **7eb51bccae0a0b7e599e084d971170e9a1e82d0c**.
-The original project, contributors, licensing notices, and history retain their
-credit. [UPSTREAM.md](UPSTREAM.md) is the unchanged upstream README at that base;
-its performance claims are upstream claims, not new measurements from this fork.
+The goal is reliable access to the hardware's unlocked tensor rate. This fork
+claims no rate beyond that unlock and no measured speed advantage over upstream.
+Our improved-module RTX 3080 trial is **pending**. Turing remains **experimental**.
+
+Fork CLI version **0.1.0**. Kernel/package version remains **2.0.0**; identify a
+fork build by its Git revision and module hash. Upstream base:
+`7eb51bccae0a0b7e599e084d971170e9a1e82d0c`.
+[UPSTREAM.md](UPSTREAM.md) preserves the original README at that base, including
+its original claims and credits.
+
+## Engine changes and evidence
+
+- **Turing TU102/TU104/TU106:** tolerate the known stale HALTED state only on
+  the Turing loader paths, allow physical DMA without a context, and clear
+  DMACTL before loading FWSEC. The two-write chain releases ACR mutex 3, opens
+  FEAT, and clears WPR2. The handoff preserves selectors by avoiding FLR and
+  requires halted engines, idle DMA, no pending PCIe transactions, and WPR2 down.
+  The 10 ms reset delay is empirical. Its actual readiness condition is unknown.
+- **Ampere direct selectors:** one signed Booter launch writes SS0 and SS1.
+  The host never opens WPR_CFG or FEAT PLMs in this mode. Both selectors and
+  unchanged protection-mask readbacks are mandatory before success. There is
+  no second launch, FRTS refill, or automatic fallback after a failed launch.
+- **Bounded compatibility:** restore GA106M `2520` and `2560`, add reported
+  GA103M `2420`, and add reported GA107 `25a2`. Other IDs proposed for GA107
+  remain excluded.
+
+`gpu_unlock.direct=-1` is the default: direct mode on GA102, the existing PLM
+path on other dies. `gpu_unlock.direct=0` selects the legacy route before any
+launch. `gpu_unlock.direct=1` explicitly enables direct mode on the listed GA10x
+recipes, including untested GA103/GA104/GA106/GA107 direct paths. Turing and Ada
+keep their own recipe regardless of this parameter. Changing modes after a
+failed launch requires recovery and a cold start; the engine never retries by
+switching modes.
+
+| Engine path or card | External evidence | This fork's evidence | Physical status here |
+| --- | --- | --- | --- |
+| TU102/TU104/TU106 | [#294](https://github.com/Zagitta/gpu-unlock/pull/294) and [#242](https://github.com/Zagitta/gpu-unlock/issues/242) report multiple RTX 2060/2070/2080 variants, including aarch64 | Production C fake-MMIO reset, loader, transaction, bounds and quiescence checks; reference payload hash | Untested; experimental |
+| GA102 direct | [Lukium #252](https://github.com/Zagitta/gpu-unlock/pull/252): eight RTX 3090 cards; reported same throughput as PLM mode | Production C checks enforce one launch, no host selector writes, masks and readbacks | RTX 3080 12 GB stock baseline captured separately; improved-module trial pending |
+| Other listed GA10x direct | Shared Booter/recipe is source evidence, not a board test | Synthetic transaction checks | Untested; opt-in only |
+| GA106M `2520`, `2560` | [#212](https://github.com/Zagitta/gpu-unlock/pull/212) restores dropped IDs; [#86](https://github.com/Zagitta/gpu-unlock/issues/86) reports `2560` | Both recipes exercised in C; `2520` restored from prior support, not newly validated | Untested |
+| GA103M `2420` | [Stradivario #217](https://github.com/Zagitta/gpu-unlock/pull/217): two adapter-mounted laptop cards | Recipe and legacy transaction checks | Untested |
+| GA107 `25a2` | [qwecvw #231](https://github.com/Zagitta/gpu-unlock/pull/231): RTX 3050 Mobile | Exact recipe and legacy transaction checks | Untested; no universal GA107 claim |
+
+[Validation and pinned source credits](docs/VALIDATION.md) records exact SHAs,
+checks, changes from the proposals, and unexercised hardware behavior.
+[The RTX 3080 pilot](docs/RTX3080-PILOT.md) contains build, installation, boot,
+evidence, and recovery steps. It is a prepared procedure, not an applied change.
 
 ## Check before installing
 
@@ -63,7 +106,7 @@ the active entry and image generator yourself. There is no universal UKI update
 command. Secure Boot may require module signing and an enrolled key; signed UKIs
 can ignore external command-line edits. Preserve a known-good boot image.
 
-The retained upstream installer remains the route to the actual engine:
+The retained packaging builds the modified engine:
 
 ```sh
 # Manual action only after reviewing doctor, the plan, and firmware/NOTICE.md.
@@ -135,7 +178,9 @@ make check
 make -C kernel/gpu_unlock KCFLAGS=-Werror -j2
 ```
 
-Tests exercise the CLI, synthetic multi-GPU/journal failures, parser boundaries,
+Tests compile and execute the production Falcon, payload, recipe, and selector
+transaction C implementations against synthetic MMIO. They also exercise the CLI,
+synthetic multi-GPU/journal failures, parser boundaries,
 comparison refusals, precision/correctness gates, private output preservation,
 and upstream package staging under a temporary `DESTDIR`. The existing
 `test-module` and `test-packages` container suites are retained for a separately
@@ -154,7 +199,12 @@ The engine, packaging, and added CLI/tests are GPL-2.0-only. See
 [licenses/CMP40HX-MIT.txt](licenses/CMP40HX-MIT.txt),
 [licenses/NVIDIA-MIT.txt](licenses/NVIDIA-MIT.txt), and
 [firmware/NOTICE.md](firmware/NOTICE.md). Zagitta and the upstream contributors
-created the unlock engine. GWeale's fork adds the surrounding workflow tooling.
+created the unlock engine. Petri Krohn's GA102 chain remains credited in source.
+The Turing integration credits RakkiPoni and nlzy; direct selectors credit Lukium.
+GWeale's fork narrows their proposals, enforces readback and transaction gates,
+adds host C regression checks, restores reported recipes, and retains the workflow
+tooling. [Exact source revisions](docs/VALIDATION.md#source-credits) identify each
+contribution.
 
 Successful upstream hardware reports belong in
 [the success discussion](https://github.com/Zagitta/gpu-unlock/discussions/238).

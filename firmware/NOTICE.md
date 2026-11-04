@@ -36,3 +36,14 @@ The Linux loading geometry, register sequence and success gates are ported from
 That report records one successful RTX 4090 production-booter transaction.
 A hardware repeat of the refactored path is still needed. AD102 uses the same per-entry signature image as GA10x. Its
 privileged stores are WPR_CFG, WPR and FEAT.
+
+The TU10x two-write payload in `recipes.c` comes from RakkiPoni's
+[PR #294](https://github.com/Zagitta/gpu-unlock/pull/294), commit
+`9422be4c7920ceb71841c4219ef1d352ef8c2344`, based on nlzy's GPL-2.0-only
+[turing-unlock generator](https://github.com/nlzy/turing-unlock/blob/417f333263ff169e8f449c931b70db9dfd7b8ef4/firmware/generate_v67.py).
+The source includes the ACR mutex release chain. Its generated image hash is
+checked by the host suite. Lukium's [PR #252](https://github.com/Zagitta/gpu-unlock/pull/252),
+commit `62105cf46bd905d67c055c77bab0c2e3b7b3bc80`, supplies the direct-selector
+transaction approach. This fork changes host policy and generated payload data;
+it distributes no newly patched NVIDIA firmware. See
+[the validation record](../docs/VALIDATION.md) for integration changes and limits.
