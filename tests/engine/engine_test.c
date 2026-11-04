@@ -150,7 +150,9 @@ static void direct_cases(void)
 static void family_cases(void)
 {
 	struct fake f;
-	const u16 ids[] = { 0x220a, 0x2414, 0x2486, 0x2504, 0x1e07, 0x1e84, 0x1f08, 0x2684 };
+	assert(!gu_card_find(0x25a0)); /* No speculative GA107 expansion. */
+	assert(!gu_card_find(0x20b0)); /* GA100 remains outside enabled PCI recipes. */
+	const u16 ids[] = { 0x220a, 0x2414, 0x2486, 0x2504, 0x2520, 0x2560, 0x2420, 0x25a2, 0x1e07, 0x1e84, 0x1f08, 0x2684 };
 	for (size_t i = 0; i < sizeof(ids)/sizeof(ids[0]); i++) {
 		init(&f, ids[i], GU_SELECT_AUTO);
 		assert(f.plan.direct == (ids[i] == 0x220a));
@@ -168,6 +170,8 @@ static void family_cases(void)
 	init(&f, 0x220a, GU_SELECT_PLM); assert(!f.plan.direct); assert(!run(&f));
 	assert(f.launches == 1 && f.host_writes == 2 && f.restores == 1); free(f.image);
 	init(&f, 0x2486, GU_SELECT_DIRECT); assert(f.plan.direct); assert(!run(&f)); free(f.image);
+	init(&f, 0x25a2, GU_SELECT_DIRECT); assert(f.plan.direct); assert(!run(&f)); free(f.image);
+	init(&f, 0x2684, GU_SELECT_DIRECT); assert(!f.plan.direct); assert(!run(&f)); free(f.image);
 	/* Legacy readback retry remains bounded and only follows successful completion. */
 	init(&f, 0x220a, GU_SELECT_PLM); f.drop_write = true;
 	assert(run(&f) == -EIO && f.launches == 2 && f.restores == 1 && !f.handoffs); free(f.image);

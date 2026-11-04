@@ -340,7 +340,7 @@ static const struct gu_family ga100 = {
 	.feat_ss1 = GU_FEAT_SS1_OFFSET,
 };
 static const struct gu_family ga10x = {
-	.name = "GA102/GA103/GA104/GA106",
+	.name = "GA102/GA103/GA104/GA106/GA107",
 	.direct_selectors = true,
 	.privileged = GU_WRITE_TABLE(ga10x_plm),
 	.host = GU_WRITE_TABLE(selectors),
@@ -393,6 +393,7 @@ static const struct gu_family tu102 = {
 #define GA103(id) { id, 0x173, &ga10x }
 #define GA104(id) { id, 0x174, &ga10x }
 #define GA106(id) { id, 0x176, &ga10x }
+#define GA107(id) { id, 0x177, &ga10x }
 
 static const struct gu_card cards[] = {
 	/* TU102: RTX 2080 Ti, Titan RTX */
@@ -428,7 +429,8 @@ static const struct gu_card cards[] = {
 	GA102(0x2206), GA102(0x2207), GA102(0x2208), GA102(0x220a),
 	GA102(0x220d), GA102(0x2216), GA102(0x222b), GA102(0x222f),
 
-	GA103(0x2414),
+	/* Stradivario #217/93e751f: GA103M 3080 Ti Laptop report. */
+	GA103(0x2414), GA103(0x2420),
 
 	GA104(0x2480), GA104(0x2482), GA104(0x2483), GA104(0x2484),
 	GA104(0x2486), GA104(0x2487), GA104(0x2488), GA104(0x2489),
@@ -442,6 +444,13 @@ static const struct gu_card cards[] = {
 	GA106(0x2501), GA106(0x2503), GA106(0x2504), GA106(0x2505),
 	GA106(0x2507), GA106(0x2508), GA106(0x2509), GA106(0x252f),
 	GA106(0x2544),
+
+	/* Cognizaunce #212/a278a53 restores IDs dropped by recipe refactoring. */
+	GA106(0x2520), GA106(0x2560),
+
+	/* qwecvw #231/f8bc993: only the reported RTX 3050 Mobile ID.
+	 * Other GA107 IDs from that proposal remain unverified here. */
+	GA107(0x25a2),
 };
 
 const struct gu_card *gu_card_find(u16 device)
