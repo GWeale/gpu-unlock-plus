@@ -31,12 +31,21 @@ on Desktop. Record the final reviewed Git revision from the handoff. The inherit
 package version is `2.0.0`, so version alone does not identify these changes.
 
 ```sh
+set -eu
 cd /home/hatter/Developer/gpu-unlock-plus
 git status --short
 git rev-parse HEAD
 make check
 make -C kernel/gpu_unlock KCFLAGS=-Werror -j2
 dpkg-checkbuilddeps
+make inputs
+(
+  cd "$HOME/.cache/gpu-unlock/inputs"
+  sha256sum -c - <<'SHA256'
+7e118923c7a23edc36114d63273a46e3e04e9af98695a42203e7ac2dfe9fc1dc  NVIDIA-kernel-module-source-610.43.03.tar.xz
+e084451db730a6df29d3d74f655749c4d236e3c945f7d94b5205e84318fe2f90  NVIDIA-Linux-x86_64-610.43.03-no-compat32.run
+SHA256
+)
 make deb
 sha256sum build/deb/gpu-unlock-dkms_2.0.0_all.deb \
   build/deb/gpu-unlock-firmware_2.0.0_all.deb
@@ -46,10 +55,13 @@ dpkg-deb --info build/deb/gpu-unlock-firmware_2.0.0_all.deb
 
 Require a clean tree and the reviewed revision before `make deb`. Stop if build
 dependencies are missing; dependency installation is a separate system change.
-`make deb` downloads the pinned NVIDIA inputs into the user cache and generates
+`make inputs` downloads NVIDIA inputs into the user cache. The fetcher does
+not verify their hashes. Require the explicit SHA-256 manifest check above,
+using the pins from `packaging/arch/PKGBUILD`, before `make deb` generates
 firmware locally. It does not run NVIDIA's installer or replace the installed
-driver. Read `firmware/NOTICE.md` first. Firmware/package generation and real
-package installation were **not run** in the implementation task.
+driver. Read `firmware/NOTICE.md` first. The verification worker built private
+Debian packages from source `981a9f4` in an existing rootless Docker builder;
+see `VALIDATION.md`. Package installation has not been run.
 
 The parent can transfer those two exact packages and their hash receipt to a
 private Desktop cache through the authorized fleet route. The destination used
@@ -68,19 +80,26 @@ cat /sys/bus/pci/devices/0000:01:00.0/subsystem_device
 lspci -Dnnk -s 0000:01:00.0
 nvidia-smi -i 00000000:01:00.0
 mokutil --sb-state
-bootctl status --no-pager
+efibootmgr -v
+grub-install --version
+test -r /boot/grub/grub.cfg
 cat /proc/cmdline
 command -v update-initramfs
 ```
 
 Require the exact identity above, installed headers for `7.0.0-42-generic`, and
-an identified active boot entry. The following boot steps assume GRUB with
-initramfs-tools. If Desktop uses a UKI, enforced signatures, or a different
-loader, stop and prepare its exact boot/signing procedure first. Do not disable
+an identified active boot entry. The parent observed the current EFI entry
+labelled Ubuntu, an existing `/boot/grub/grub.cfg`, and installed `efibootmgr`
+and `grub-install`; `bootctl` is absent. Confirm the EFI entry and actual GRUB
+configuration together before proceeding. The following boot steps assume
+GRUB with initramfs-tools. If Desktop uses a UKI, enforced signatures, or a
+different loader, stop and prepare its exact boot/signing procedure first. Do not disable
 Secure Boot as an improvised workaround.
 
-Keep a working console or SSH route independent of the GPU's display. The FLR
-can blank that display until NVIDIA takes over. Preserve the original initrd
+Require an attended physical recovery console for this trial. Desktop's SSH
+service is inactive; do not count on SSH or enable it as part of preparation.
+The FLR can blank the GPU display until NVIDIA takes over. Confirm the physical
+console recovery procedure before proceeding. Preserve the original initrd
 before package hooks regenerate it:
 
 ```sh

@@ -4,7 +4,11 @@ Observed on Hatter, 2026-11-04 UTC. The writable owner checkout is
 `/home/hatter/Developer/gpu-unlock-plus`. No GPU was accessed by this work.
 The source base is upstream `7eb51bccae0a0b7e599e084d971170e9a1e82d0c`;
 the prior tooling delivery ended at `4c59aa554216a5d723ac9ee509450b6d46c8a561`.
-Earlier validation remains in that revision's history.
+Earlier validation remains in that revision's history. The verification worker
+fast-forwarded the clean owner checkout to corrected source
+`981a9f434f3244a5c9880b99036d7b5b6a1c8116`. All current checks and pilot
+packages below identify that source. Later documentation edits and future
+feature work are not included in these package artifacts.
 
 ## Observed engine results
 
@@ -63,31 +67,72 @@ passes the expanded fixture under normal compilation and AddressSanitizer
 plus UndefinedBehaviorSanitizer. Each engine is checked with not-full/busy,
 full/busy, and idle states. No hardware operations were used for this check.
 The independent reviewer found no other material issue in that bounded pass;
-this does not certify physical firmware or suspend behavior.
+this does not certify physical firmware or suspend behavior. The Hatter worker
+reran the expanded production-C suite normally and with ASan plus UBSan at
+corrected source `981a9f4`; both passed. The packaged `engine.c` was compared
+byte-for-byte with that source and contains the IDLE mask/expected value `2, 2`.
 
 ## Checks
 
 | Check | Result |
 | --- | --- |
-| `BASELINE=1 tests/engine/run.sh` | Passed old failure reproduction, new behavior and Turing reference hash |
-| `SANITIZE=1 tests/engine/run.sh` | Passed AddressSanitizer and UndefinedBehaviorSanitizer on the C fixtures |
-| `make check` | Passed production C checks, 32 Python CLI/benchmark/packaging tests, Python compilation and whitespace checks |
-| `make -C kernel/gpu_unlock KCFLAGS=-Werror -j2` | Passed against installed `7.0.0-42-generic` headers |
-| `make dist` | Passed; archive contains the modified engine, C fixtures and pilot |
-| Private package staging | Passed in the existing fake-root packaging check; includes `engine.c` and `engine.h` through the existing module source glob |
+| `BASELINE=1 tests/engine/run.sh` | Prior implementation run passed old failure reproduction; not repeated for the IDLE-bit correction |
+| `SANITIZE=1 tests/engine/run.sh` | Exit 0; AddressSanitizer and UndefinedBehaviorSanitizer passed the corrected production-C fixtures |
+| `make check` | Exit 0; production C checks, Turing reference hash, all 32 Python tests, Python compilation and whitespace checks passed |
+| `make -C kernel/gpu_unlock KCFLAGS=-Werror -j2` | Exit 0 against installed `7.0.0-42-generic` headers |
+| `sh -n` pilot blocks and supporting scripts | Exit 0; all eight shell blocks, init-top hook, snapshot script and engine runner parsed without execution |
+| `make dist` | Exit 0; exact `981a9f4` source archive prepared before documentation edits |
+| Host `dpkg-checkbuilddeps` | Exit 1; missing `debhelper-compat (= 13)` and `dh-sequence-dkms`; no host packages installed |
+| Rootless Debian package build | Exit 0; existing rootless Docker, Debian 13 disposable builder, native version `2.0.0`, no package installation |
+| Package inspection | Exit 0; metadata, payload checksums, maintainer-script syntax, all 27 DKMS source files, 16 firmware assets and decompressed NVIDIA license verified |
 | Physical improved-module tests | Not run |
-| Container distribution matrix, firmware generation and real package installation | Not run |
-| Hidden independent review | Completed on Desktop against `6574d19`; one DMA-idle defect corrected and regression-tested |
+| Container distribution matrix and real package installation | Not run |
+| Hidden independent review | Parent reports bounded Desktop review against `6574d19`; one P1 DMA-idle defect corrected, no other material findings |
 
 The module build reports the GCC executable-name difference, matching GCC
 15.2.0 versions, unavailable `pahole`, and skipped BTF because `vmlinux` is absent.
 The module is produced. These build-environment messages do not establish GPU
 behavior.
 
+## Native Debian pilot artifacts
+
+The default Docker socket was unavailable. The already running rootless daemon
+at Hatter's user socket supplied a disposable Debian 13 builder. Its image was
+`debian@sha256:f6b08b09a05725f9431502d3b5714f5c4576e82c1a84fa1debe0c24a7e0c3ec4`.
+Build dependencies were installed only inside that container. The owner checkout
+was mounted read-only, with only ignored `build/` writable, and NVIDIA inputs
+were mounted read-only. The container was removed automatically after success.
+
+`make inputs` fetched the two NVIDIA inputs. The existing fetcher does **not**
+verify their hashes. Before firmware generation, both files passed an explicit
+`sha256sum -c` manifest using the SHA-256 pins already in
+`packaging/arch/PKGBUILD`. The builder repeated that gate before running
+`make -o dist -o inputs deb INPUTS=/inputs`, reusing the exact source archive and
+verified inputs. No NVIDIA installer was executed. The build generated firmware
+through the existing extractors and passed its production-C and 32 Python tests.
+
+The resulting packages are `build/deb/gpu-unlock-dkms_2.0.0_all.deb` and
+`build/deb/gpu-unlock-firmware_2.0.0_all.deb`, respectively 47,468 and
+84,915,052 bytes. Both declare architecture `all`; DKMS depends on the exact
+firmware version `2.0.0`. All packaged DKMS files match source `981a9f4`,
+including the actual IDLE-bit correction. The firmware package includes all
+16 expected assets and the original license, compressed by Debian tooling.
+The first inspection probe expected an uncompressed license path and exited 1;
+the corrected probe compared its decompressed bytes and passed.
+
+Exact package paths, sizes, SHA-256 values, source-file hashes, command statuses
+and local retained copies are in a private Hatter receipt outside Git. The
+retained packages identify only source `981a9f4`; inherited version `2.0.0`
+does not identify a later experiment. No binaries were committed, transferred
+to another machine or published. Downloaded and generated inputs remain in the
+private cache or ignored build tree.
+
 The parent separately captured an RTX 3080 12 GB stock/existing-driver baseline
-on Desktop using cuBLAS and CUDA from a user cache. That result is not a test of
-this module. Raw identity, timings, and logs remain private on Desktop. The
-improved-module trial, suspend/resume, retained unlock, performance comparison,
+on Desktop using cuBLAS and CUDA from a user cache. The parent reports that the
+final reusable instrument passed all eight stock cases with zero output errors
+and that `--phase pilot` refuses while the module is absent. That result is not
+a test of this module. Raw identity, timings, and logs remain private on Desktop.
+The improved-module trial, suspend/resume, retained unlock, performance comparison,
 and every other board remain untested here. No speedup is claimed.
 
 ## Source credits
@@ -124,8 +169,8 @@ additional buffer rewrite or old alignment-rejection fix was needed.
 
 ## Delivery boundary
 
-Only code, synthetic host checks, local builds, documentation, private commits,
-private push, and scoped backup are part of this delivery. No module was
-installed or loaded, no boot source was changed, and no host was rebooted.
+Source, synthetic host checks, local module and private Debian package builds,
+documentation, private commits, private push and scoped backup are part of this
+delivery. No module was installed or loaded, no boot source was changed, and no host was rebooted.
 No public PR, upstream comment, release, or merge was created. The RTX 3080
 pilot is prepared separately and has not been applied.
